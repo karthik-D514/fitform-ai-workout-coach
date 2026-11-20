@@ -38,6 +38,7 @@ class FitFormApp {
     this.pose           = null;
     this.isRunning      = false;
     this.isPaused       = false;
+    this.currentFacingMode = 'user'; // 'user' (front/selfie) or 'environment' (rear)
 
     // Session
     this.formScores       = [];
@@ -95,6 +96,7 @@ class FitFormApp {
     document.getElementById('exercise_select').addEventListener('change', (e) => this.switchExercise(e.target.value));
     this.startBtn.addEventListener('click', () => this.toggleCamera());
     document.getElementById('stop_cam_btn')?.addEventListener('click', () => this.toggleCamera());
+    document.getElementById('flip_cam_btn')?.addEventListener('click', () => this.switchCamera());
     document.getElementById('finish_set_btn').addEventListener('click', () => this.finishSet());
     document.getElementById('voice_toggle_btn').addEventListener('click', (e) => this.toggleVoice(e));
 
@@ -222,7 +224,7 @@ class FitFormApp {
       try {
         this.startBtn.innerHTML = '<span class="inline-block animate-spin">⌛</span> Starting...';
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: this.currentFacingMode },
           audio: false
         });
 
@@ -259,6 +261,7 @@ class FitFormApp {
         this.isRunning = true;
         this.sessionStartTime = Date.now();
         document.getElementById('stop_cam_btn')?.classList.remove('hidden');
+        document.getElementById('flip_cam_btn')?.classList.remove('hidden');
         this.startBtn.innerHTML = '⏹ Stop Camera';
         this.startBtn.classList.remove('bg-emerald-500', 'text-slate-950');
         this.startBtn.classList.add('bg-rose-500', 'text-white');
@@ -284,6 +287,7 @@ class FitFormApp {
       const ctx = this.canvasCtx;
       ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
       document.getElementById('stop_cam_btn')?.classList.add('hidden');
+      document.getElementById('flip_cam_btn')?.classList.add('hidden');
       if (this.overlayDiv) this.overlayDiv.style.display = '';
 
       this.startBtn.innerHTML = '▶ Start Camera';
@@ -291,6 +295,13 @@ class FitFormApp {
       this.startBtn.classList.remove('bg-rose-500', 'text-white');
       this.voiceCoach.speak('Camera stopped.', true);
     }
+  }
+
+  async switchCamera() {
+    if (!this.isRunning) return;
+    this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
+    await this.toggleCamera(); // stop current
+    await this.toggleCamera(); // restart with flipped mode
   }
 
   _animLoop() {

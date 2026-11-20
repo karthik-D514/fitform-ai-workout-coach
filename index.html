@@ -2,7 +2,14 @@
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b0f19" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="FitForm AI" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="manifest" href="manifest.json" />
   <title>FitForm AI — Personal AI Workout Coach</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -101,8 +108,11 @@
           </span>
         </div>
 
-        <!-- Top-Right Floating Stop Camera Button (active when running) -->
-        <div class="absolute top-3 right-3 z-30">
+        <!-- Top-Right Floating Camera Controls (active when running) -->
+        <div class="absolute top-3 right-3 z-30 flex items-center gap-2">
+          <button id="flip_cam_btn" title="Switch Front/Rear Camera (Mobile)" class="hidden px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-900/85 hover:bg-slate-800 text-slate-200 backdrop-blur-md shadow-lg transition active:scale-95 flex items-center gap-1 border border-slate-700">
+            🔄 Flip
+          </button>
           <button id="stop_cam_btn" class="hidden px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/85 hover:bg-rose-500 text-white backdrop-blur-md shadow-lg transition active:scale-95 flex items-center gap-1.5 border border-rose-400/30">
             ⏹ Stop Camera
           </button>
@@ -274,7 +284,7 @@
     if ('caches' in window) {
       caches.keys().then((names) => {
         names.forEach((name) => {
-          if (name !== 'fitform-ai-cache-v4') {
+          if (name !== 'fitform-ai-cache-v5') {
             console.log('Purged stale cache:', name);
             caches.delete(name);
           }
@@ -284,10 +294,10 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=4')
+        navigator.serviceWorker.register('sw.js?v=5')
           .then((reg) => {
             reg.update();
-            console.log('SW v4 registered:', reg.scope);
+            console.log('SW v5 registered:', reg.scope);
           })
           .catch((err) => console.warn('SW registration failed:', err));
       });
