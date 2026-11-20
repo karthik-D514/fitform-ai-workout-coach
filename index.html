@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FitForm AI — Personal AI Workout Coach</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { brand: { 500: '#10b981', dark: '#0b0f19' } }
+        }
+      }
+    }
+  </script>
+
+  <!-- MediaPipe Pose & Camera (must load before app.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+
+  <style>
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+    /* Camera canvas: always full-size, fully opaque */
+    #output_canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 1 !important;
+    }
+
+    /* The camera-off overlay — covers canvas before camera starts, hidden after */
+    #camera_off_prompt {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #020c18;
+      z-index: 20;
+      transition: opacity 0.25s;
+    }
+    /* JS sets display:none, but add visibility transition via opacity */
+    #camera_off_prompt[style*="display: none"] { pointer-events: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-8 py-3 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3 shrink-0">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center font-black text-xl text-slate-950 shadow-lg shadow-emerald-500/20">⚡</div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">FitForm AI</h1>
+        <p class="text-[10px] text-slate-400 font-medium">AI Workout Coach • 100% On-Device • No Internet Needed During Workout</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div id="engine_status" class="hidden lg:flex text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 font-mono items-center gap-1.5 border border-slate-700 shrink-0">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse inline-block"></span> Loading AI...
+      </div>
+      <button id="voice_toggle_btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 transition flex items-center gap-1.5 shrink-0">
+        🔊 Coach On
+      </button>
+      <button id="fullscreen_btn" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-sm shrink-0" title="Fullscreen">⛶</button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 lg:p-5 max-w-[1800px] w-full mx-auto">
+
+    <!-- Camera + Controls Column -->
+    <div class="lg:col-span-8 flex flex-col gap-3">
+
+      <!-- Equipment Category Filters -->
+      <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar" id="equipment_filters"></div>
+
+      <!-- Camera / Canvas Viewport -->
+      <div class="relative w-full aspect-video bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+
+        <!-- Source video (hidden — MediaPipe reads from this) -->
+        <video id="webcam" class="hidden" playsinline muted></video>
+
+        <!-- Output canvas: MediaPipe draws skeleton + video feed onto this -->
+        <canvas id="output_canvas"></canvas>
+
+        <!-- Top-Left Floating State & Live Feedback Badge -->
+        <div class="absolute top-3 left-3 flex flex-col gap-2 z-10 pointer-events-none">
+          <div id="form_status_badge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950/80 text-emerald-400 border border-slate-700 shadow-lg backdrop-blur-sm max-w-sm">
+            <span>🟢</span><span>READY — Click &ldquo;Start Camera&rdquo; below</span>
+          </div>
+          <span id="state_pill" class="inline-block text-[11px] px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono uppercase tracking-wider font-bold backdrop-blur-sm w-fit">
+            Idle
+          </span>
+        </div>
+
+        <!-- Top-Right Floating Stop Camera Button (active when running) -->
+        <div class="absolute top-3 right-3 z-30">
+          <button id="stop_cam_btn" class="hidden px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/85 hover:bg-rose-500 text-white backdrop-blur-md shadow-lg transition active:scale-95 flex items-center gap-1.5 border border-rose-400/30">
+            ⏹ Stop Camera
+          </button>
+        </div>
+
+        <!-- Camera Off Splash / Start Screen -->
+        <div id="camera_off_prompt" class="p-6 text-center">
+          <div class="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl mb-4 mx-auto">📷</div>
+          <h2 class="text-xl font-bold text-white mb-2">AI Workout Coach Ready</h2>
+          <p class="text-xs text-slate-400 max-w-sm mb-5 leading-relaxed mx-auto">
+            Position your laptop ~6–8 ft away on a table so your <strong class="text-slate-200">entire body is visible</strong> in frame.<br>
+            Your camera feed never leaves your device.
+          </p>
+          <button id="start_cam_btn"
+            class="px-7 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/30 transition-all active:scale-95 flex items-center gap-2 mx-auto">
+            ▶ Start Camera &amp; Workout
+          </button>
+          <p class="text-[10px] text-slate-500 mt-3">First use loads ~25 MB MediaPipe model — requires internet once only.</p>
+        </div>
+
+      </div>
+
+      <!-- Exercise Info Card -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-center gap-2 mb-1">
+            <h3 id="current_exercise_title" class="text-sm font-bold text-white leading-tight">Bodyweight Squat</h3>
+            <span id="current_exercise_equipment" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium shrink-0">Bodyweight</span>
+          </div>
+          <p id="current_exercise_tip" class="text-[11px] text-amber-300/90 leading-relaxed bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5">
+            Stand 6-8 ft back. Camera must see ankles to nose.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <button id="how_to_btn" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 transition flex items-center gap-1.5 shadow-sm active:scale-95">
+            <span>🎬</span> How to Do It (Tutorial)
+          </button>
+          <span id="recommended_camera_angle" class="text-[10px] text-cyan-400 font-mono bg-cyan-950/60 border border-cyan-800/40 px-2.5 py-1 rounded-lg">📷 Front/45°</span>
+          <span id="current_exercise_muscles"  class="text-[10px] text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-lg">Target: Quads, Glutes</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Sidebar -->
+    <div class="lg:col-span-4 flex flex-col gap-3">
+
+      <!-- Exercise Selector -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <label for="exercise_select" class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Exercise</label>
+        <select id="exercise_select"
+          class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-emerald-500 transition cursor-pointer">
+        </select>
+      </div>
+
+      <!-- Rep Counter + Form Score -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
+        <div class="grid grid-cols-2 gap-3">
+
+          <!-- Rep Counter -->
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-center flex flex-col items-center">
+            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Count</span>
+            <div id="rep_counter" class="text-5xl font-black font-mono text-emerald-400 tracking-tight leading-none transition-all">0</div>
+            <div class="flex items-center gap-1 mt-1">
+              <span id="set_counter" class="text-[10px] font-semibold text-slate-400">Set 1</span>
+              <span class="text-slate-600">•</span>
+              <span id="rep_unit" class="text-[10px] font-semibold text-slate-400">reps</span>
+            </div>
+          </div>
+
+          <!-- Form Score -->
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-center flex flex-col items-center justify-between">
+            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Form</span>
+            <div id="form_score" class="text-4xl font-extrabold font-mono text-cyan-400 leading-none my-auto">100%</div>
+            <span class="text-[9px] text-emerald-400 font-medium">Accuracy Score</span>
+          </div>
+        </div>
+
+        <!-- Set Controls -->
+        <div>
+          <button id="finish_set_btn"
+            class="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition border border-slate-700 flex items-center justify-center gap-1.5 active:scale-95 shadow-sm">
+            🏁 Finish Set &amp; Log
+          </button>
+        </div>
+
+        <!-- Rest Timer Buttons -->
+        <div class="border-t border-slate-800 pt-3">
+          <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Rest Timer</div>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button class="rest-btn py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 font-mono transition" data-seconds="30">30s</button>
+            <button class="rest-btn py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 font-mono transition" data-seconds="45">45s</button>
+            <button class="rest-btn py-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 font-mono transition" data-seconds="90">90s</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Joint Angle Telemetry -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <h4 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <span>📐</span> Live Joint Angles
+        </h4>
+        <div id="live_angle_telemetry" class="flex flex-col min-h-[60px]">
+          <div class="text-xs text-slate-500 py-1">Start camera to see live angles...</div>
+        </div>
+      </div>
+
+      <!-- Form Checklist -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <h4 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <span>📋</span> Posture Checklist
+        </h4>
+        <ul id="form_checklist" class="flex flex-col gap-1">
+          <li class="text-xs text-slate-500">Start camera to see real-time checks...</li>
+        </ul>
+      </div>
+
+      <!-- Daily Workout Log & History -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
+        <div class="flex justify-between items-center">
+          <div>
+            <h4 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Daily Workout Log</h4>
+            <div id="today_summary" class="text-xs font-bold text-emerald-400 mt-0.5">Today: 0 reps • 0 sets</div>
+          </div>
+          <div class="text-[10px] text-slate-400 text-right">
+            <div>All-Time: <span id="lifetime_reps" class="font-bold text-white font-mono">0</span> reps</div>
+          </div>
+        </div>
+
+        <!-- History Timeline -->
+        <div id="history_list" class="flex flex-col max-h-56 overflow-y-auto"></div>
+
+        <!-- Log Export Actions -->
+        <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1.5">
+            <button id="export_csv_btn" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-semibold transition border border-slate-700 flex items-center gap-1 active:scale-95" title="Export as CSV for Excel/Sheets">
+              <span>📊</span> Export CSV
+            </button>
+            <button id="export_json_btn" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-semibold transition border border-slate-700 flex items-center gap-1 active:scale-95" title="Backup full workout history">
+              <span>💾</span> Backup JSON
+            </button>
+          </div>
+          <button id="clear_history_btn" class="text-[10px] text-slate-500 hover:text-rose-400 transition" title="Clear all saved logs">
+            Clear
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Rest Timer Modal -->
+  <div id="rest_timer_modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-xs w-full text-center shadow-2xl">
+      <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Rest &amp; Recovery</div>
+      <div id="rest_timer_display" class="text-7xl font-black font-mono text-cyan-400 my-3">45s</div>
+      <p class="text-xs text-slate-400 mb-5">Breathe, hydrate, prepare.</p>
+      <button id="skip_rest_btn" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition">
+        Skip Rest
+      </button>
+    </div>
+  </div>
+
+  <!-- App Module -->
+  <script type="module" src="app.js"></script>
+
+  <!-- Service Worker with Auto Cache Invalidation -->
+  <script>
+    if ('caches' in window) {
+      caches.keys().then((names) => {
+        names.forEach((name) => {
+          if (name !== 'fitform-ai-cache-v4') {
+            console.log('Purged stale cache:', name);
+            caches.delete(name);
+          }
+        });
+      });
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js?v=4')
+          .then((reg) => {
+            reg.update();
+            console.log('SW v4 registered:', reg.scope);
+          })
+          .catch((err) => console.warn('SW registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>
