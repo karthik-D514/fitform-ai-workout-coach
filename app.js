@@ -25,6 +25,7 @@ import { TutorialModal } from './tutorial_modal.js';
 import { CalendarView } from './calendar_view.js';
 import { LibraryView } from './library_view.js';
 import { AnalyticsView } from './analytics_view.js';
+import { AdaptiveEngine } from './adaptive_engine.js';
 
 class FitFormApp {
   constructor() {
@@ -36,6 +37,7 @@ class FitFormApp {
 
     this.voiceCoach     = new VoiceCoach();
     this.tutorialModal  = new TutorialModal();
+    this.adaptiveEngine = new AdaptiveEngine();
     this.calendarView   = new CalendarView('calendar_view_container');
     this.libraryView    = new LibraryView('library_view_container', (id) => this.launchFromLibrary(id));
     this.analyticsView  = new AnalyticsView('analytics_view_container', (id) => this.launchFromLibrary(id));
@@ -225,7 +227,28 @@ class FitFormApp {
     document.getElementById('form_status_badge').innerHTML = '<span>🟢</span> <span>READY — STEP INTO FRAME</span>';
     document.getElementById('state_pill').innerText = 'Ready';
     this.updateExerciseInfoCard();
+    this.updateTierBadge();
     this.voiceCoach.speak(`${this.currentExercise.name}. ${this.currentExercise.setupTip}`, true);
+  }
+
+  updateTierBadge() {
+    if (!this.adaptiveEngine) return;
+    const tier = this.adaptiveEngine.getCurrentTier();
+    const target = this.adaptiveEngine.getTargetForExercise(this.currentExercise);
+    const unit = this.currentExercise && this.currentExercise.isHold ? 'Sec Hold' : 'Reps';
+
+    const icon = document.getElementById('tier_badge_icon');
+    const title = document.getElementById('tier_title');
+    const targetText = document.getElementById('tier_target_text');
+    const pill = document.getElementById('tier_streak_pill');
+
+    if (icon) icon.innerText = tier.badge.split(' ')[0] || '🌱';
+    if (title) title.innerText = `Tier ${tier.level}: ${tier.name}`;
+    if (targetText) targetText.innerText = `Target: ${target} ${unit} • ${tier.minAccuracyToAdvance}% Form`;
+    if (pill) {
+      const days = this.adaptiveEngine.tierData.consecutiveSuccessDays || 0;
+      pill.innerText = `${days}/3 Days to Level Up`;
+    }
   }
 
   updateExerciseInfoCard() {
@@ -791,6 +814,22 @@ class FitFormApp {
     Biomechanics.resetSmoothingHistory();
     document.getElementById('rep_counter').innerText = '0';
     this.renderHistory();
+
+    // Evaluate adaptive tier progression
+    if (this.adaptiveEngine) {
+      const progression = this.adaptiveEngine.evaluateProgression();
+      if (progression) {
+        if (progression.type === 'LEVEL_UP') {
+          this.voiceCoach.speak(`Congratulations! You leveled up to ${progression.newTier.name}!`, true);
+          alert(progression.message);
+        } else if (progression.type === 'DELOAD') {
+          this.voiceCoach.speak('Deload recovery active. Targets adjusted to protect your joints.', true);
+          alert(progression.message);
+        }
+        this.updateTierBadge();
+      }
+    }
+
     if (this.calendarView) this.calendarView.render();
     if (this.analyticsView) this.analyticsView.render();
     this.startRestTimer(45);

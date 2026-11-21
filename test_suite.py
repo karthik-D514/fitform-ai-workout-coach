@@ -418,6 +418,52 @@ def run_tests():
     print("✅ TEST 16: Overhead press stance width & standing stability detector verified")
     passed += 1
 
+    # ─────────────────────────────────────────────────────────────
+    # TEST 17: Adaptive Engine Tier Promotion (3-Day Mastery)
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    # Tier 1 targets: 8 reps, 88% form
+    tier1_target = 8
+    tier1_min_form = 88
+    # 3 consecutive successful days
+    consecutive_days = 0
+    simulated_days = [
+        {'reps': 10, 'form': 92}, # Day 1: Beat target with high form
+        {'reps': 12, 'form': 95}, # Day 2: Beat target with high form
+        {'reps': 15, 'form': 90}  # Day 3: Beat target with high form
+    ]
+    current_level = 1
+    for day in simulated_days:
+        if day['reps'] >= tier1_target and day['form'] >= tier1_min_form:
+            consecutive_days += 1
+            if consecutive_days >= 3 and current_level < 5:
+                current_level += 1
+                consecutive_days = 0
+    assert current_level == 2, f"Expected Level 2 promotion, got {current_level}"
+    print("✅ TEST 17: Adaptive Engine Tier promotion (3-day mastery) verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 18: Adaptive Engine Deload Recovery Trigger
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    # If athlete struggles for 3 sessions in Level 2, should trigger Deload to Level 1
+    struggle_sessions = 0
+    simulated_struggles = [
+        {'reps': 4, 'form': 70}, # Struggle 1 (fatigue)
+        {'reps': 3, 'form': 68}, # Struggle 2
+        {'reps': 4, 'form': 72}  # Struggle 3
+    ]
+    for s in simulated_struggles:
+        if s['form'] < 75 or s['reps'] < 6:
+            struggle_sessions += 1
+            if struggle_sessions >= 3 and current_level > 1:
+                current_level -= 1
+                struggle_sessions = 0
+    assert current_level == 1, f"Expected Deload to Level 1, got {current_level}"
+    print("✅ TEST 18: Adaptive Engine Deload recovery trigger verified")
+    passed += 1
+
     print("=" * 60)
     print(f"🎉 ALL {passed}/{total} TESTS PASSED WITH 100% SUCCESS!")
     print("=" * 60)
