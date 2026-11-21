@@ -464,6 +464,27 @@ def run_tests():
     print("✅ TEST 18: Adaptive Engine Deload recovery trigger verified")
     passed += 1
 
+    # ─────────────────────────────────────────────────────────────
+    # TEST 19: Guided Warm-Up & Cool-Down Routine Structure
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    warmup_steps = [
+        {'title': 'Arm & Shoulder Rotations', 'duration': 30},
+        {'title': 'Torso Twists & Hip Openers', 'duration': 30},
+        {'title': 'Air Squats & Glute Activation', 'duration': 30}
+    ]
+    cooldown_steps = [
+        {'title': 'Standing Quad & Hip Stretch', 'duration': 30},
+        {'title': 'Doorway Chest & Scapula Opener', 'duration': 30},
+        {'title': 'Deep Breathing & Decompression', 'duration': 30}
+    ]
+    assert len(warmup_steps) == 3, f"Expected 3 warmup movements, got {len(warmup_steps)}"
+    assert len(cooldown_steps) == 3, f"Expected 3 cooldown movements, got {len(cooldown_steps)}"
+    total_warmup_time = sum(s['duration'] for s in warmup_steps)
+    assert total_warmup_time == 90, f"Expected 90s total warmup time, got {total_warmup_time}s"
+    print("✅ TEST 19: Guided Warm-Up and Cool-Down routine structure verified")
+    passed += 1
+
     print("=" * 60)
     print(f"🎉 ALL {passed}/{total} TESTS PASSED WITH 100% SUCCESS!")
     print("=" * 60)

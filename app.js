@@ -26,6 +26,7 @@ import { CalendarView } from './calendar_view.js';
 import { LibraryView } from './library_view.js';
 import { AnalyticsView } from './analytics_view.js';
 import { AdaptiveEngine } from './adaptive_engine.js';
+import { RoutineManager } from './warmup_cooldown.js';
 
 class FitFormApp {
   constructor() {
@@ -38,6 +39,7 @@ class FitFormApp {
     this.voiceCoach     = new VoiceCoach();
     this.tutorialModal  = new TutorialModal();
     this.adaptiveEngine = new AdaptiveEngine();
+    this.routineManager = new RoutineManager(this.voiceCoach);
     this.calendarView   = new CalendarView('calendar_view_container');
     this.libraryView    = new LibraryView('library_view_container', (id) => this.launchFromLibrary(id));
     this.analyticsView  = new AnalyticsView('analytics_view_container', (id) => this.launchFromLibrary(id));
@@ -114,6 +116,10 @@ class FitFormApp {
     document.getElementById('how_to_btn').addEventListener('click', () => {
       this.tutorialModal.open(this.currentExercise.id, this.currentExercise.name);
     });
+
+    // Guided Warm-Up & Cool-Down Routine Buttons
+    document.getElementById('start_warmup_btn')?.addEventListener('click', () => this.routineManager.startRoutine('warmup'));
+    document.getElementById('start_cooldown_btn')?.addEventListener('click', () => this.routineManager.startRoutine('cooldown'));
     // Log Export / Clear actions
     document.getElementById('export_csv_btn')?.addEventListener('click', () => StorageManager.exportCSV());
     document.getElementById('export_json_btn')?.addEventListener('click', () => StorageManager.exportJSON());
