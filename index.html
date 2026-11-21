@@ -355,7 +355,7 @@
     if ('caches' in window) {
       caches.keys().then((names) => {
         names.forEach((name) => {
-          if (name !== 'fitform-ai-cache-v7') {
+          if (name !== 'fitform-ai-cache-v8') {
             console.log('Purged stale cache:', name);
             caches.delete(name);
           }
@@ -365,10 +365,10 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=7')
+        navigator.serviceWorker.register('sw.js?v=8')
           .then((reg) => {
             reg.update();
-            console.log('SW v7 registered:', reg.scope);
+            console.log('SW v8 registered:', reg.scope);
           })
           .catch((err) => console.warn('SW registration failed:', err));
       });

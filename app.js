@@ -358,21 +358,8 @@ class FitFormApp {
           this.overlayDiv.style.display = 'none';
         }
 
-        if (typeof window.Camera !== 'undefined' && this.pose) {
-          this.camera = new window.Camera(this.videoElement, {
-            onFrame: async () => {
-              if (this.isRunning && !this.isPaused && this.pose) {
-                await this.pose.send({ image: this.videoElement });
-              }
-            },
-            width: vw,
-            height: vh
-          });
-          await this.camera.start();
-        } else {
-          this._animLoopRunning = true;
-          this._animLoop();
-        }
+        // Direct hardware frame loop (prevents NotReadableError duplicate getUserMedia from window.Camera)
+        this._startFrameLoop();
 
         this.isRunning = true;
         this.sessionStartTime = Date.now();
@@ -387,15 +374,24 @@ class FitFormApp {
         console.error('Camera error:', err);
         this.startBtn.innerHTML = '▶ Start Camera & Workout';
         this.startBtn.classList.add('bg-emerald-500', 'text-slate-950');
-        alert('Could not access camera.\n\n' + err.message + '\n\nPlease allow camera permissions and retry.');
+
+        let msg = 'Could not access camera.\n\n' + err.message;
+        if (err.name === 'NotReadableError') {
+          msg = '⚠️ CAMERA HARDWARE BUSY (NotReadableError):\n\n' +
+                'Another app or browser tab on your device is currently locking the camera.\n\n' +
+                '1. Please close any background camera apps, video calls, or other browser tabs.\n' +
+                '2. Refresh the page and tap Start Camera again.';
+        }
+        alert(msg);
       }
     } else {
       this._animLoopRunning = false;
       this.isRunning = false;
 
-      if (this.camera) { try { await this.camera.stop(); } catch (_) {} this.camera = null; }
       if (this.videoElement.srcObject) {
-        this.videoElement.srcObject.getTracks().forEach((t) => t.stop());
+        try {
+          this.videoElement.srcObject.getTracks().forEach((t) => t.stop());
+        } catch (_) {}
         this.videoElement.srcObject = null;
       }
 
@@ -406,7 +402,7 @@ class FitFormApp {
       document.getElementById('flip_cam_btn')?.classList.add('hidden');
       if (this.overlayDiv) this.overlayDiv.style.display = '';
 
-      this.startBtn.innerHTML = '▶ Start Camera';
+      this.startBtn.innerHTML = '▶ Start Camera & Workout';
       this.startBtn.classList.add('bg-emerald-500', 'text-slate-950');
       this.startBtn.classList.remove('bg-rose-500', 'text-white');
       this.voiceCoach.speak('Camera stopped.', true);
@@ -416,16 +412,45 @@ class FitFormApp {
   async switchCamera() {
     if (!this.isRunning) return;
     this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
-    await this.toggleCamera(); // stop current
-    await this.toggleCamera(); // restart with flipped mode
+    await this.toggleCamera(); // stop current stream
+    await new Promise((r) => setTimeout(r, 150)); // allow mobile camera driver to release sensor
+    await this.toggleCamera(); // start stream with new facingMode
   }
 
-  _animLoop() {
-    if (!this._animLoopRunning) return;
-    if (this.isRunning && !this.isPaused && this.pose && this.videoElement.readyState >= 2) {
-      this.pose.send({ image: this.videoElement });
+  _startFrameLoop() {
+    this._animLoopRunning = true;
+    let isProcessing = false;
+
+    const processFrame = async () => {
+      if (!this._animLoopRunning) return;
+
+      if (this.isRunning && !this.isPaused && this.pose && this.videoElement && this.videoElement.readyState >= 2) {
+        if (!isProcessing) {
+          isProcessing = true;
+          try {
+            await this.pose.send({ image: this.videoElement });
+          } catch (err) {
+            console.warn('Pose send frame warning:', err);
+          } finally {
+            isProcessing = false;
+          }
+        }
+      }
+
+      if (this._animLoopRunning) {
+        if ('requestVideoFrameCallback' in this.videoElement) {
+          this.videoElement.requestVideoFrameCallback(processFrame);
+        } else {
+          requestAnimationFrame(processFrame);
+        }
+      }
+    };
+
+    if ('requestVideoFrameCallback' in this.videoElement) {
+      this.videoElement.requestVideoFrameCallback(processFrame);
+    } else {
+      requestAnimationFrame(processFrame);
     }
-    requestAnimationFrame(() => this._animLoop());
   }
 
   // ─────────────────────────────────────────────────────────────────────────
