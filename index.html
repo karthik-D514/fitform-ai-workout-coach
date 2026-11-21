@@ -151,6 +151,42 @@
 
 
 
+        <!-- Live Arena Routine Banner (Visible when Guided Warm-Up or Cool-Down is running) -->
+        <div id="arena_routine_hud" class="hidden absolute top-12 left-2.5 right-2.5 z-30 bg-slate-950/95 border border-amber-500/40 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex flex-wrap items-center justify-between gap-3 animate-fade-in pointer-events-auto">
+          <div class="flex items-center gap-3">
+            <div id="routine_hud_icon" class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-xl shrink-0">
+              🔄
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span id="routine_hud_badge" class="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider bg-amber-500/30 text-amber-300 font-mono">
+                  WARM-UP • MOVEMENT 1 OF 3
+                </span>
+                <span id="routine_hud_title" class="text-xs sm:text-sm font-extrabold text-white">
+                  Arm &amp; Shoulder Rotations
+                </span>
+              </div>
+              <p id="routine_hud_tip" class="text-[10px] text-amber-200/90 mt-0.5 leading-snug">
+                Circle arms smoothly. MediaPipe is tracking joint extension &amp; rotations in real-time.
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5 shrink-0 ml-auto">
+            <div class="text-right">
+              <div class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Interval</div>
+              <div id="routine_hud_timer" class="text-xl sm:text-2xl font-black font-mono text-amber-400 leading-none">
+                30s
+              </div>
+            </div>
+            <button id="routine_hud_next_btn" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95 shadow-md flex items-center gap-1">
+              <span>Next</span> ➔
+            </button>
+            <button id="routine_hud_exit_btn" class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition active:scale-95 border border-slate-700" title="Exit Routine">
+              ✕
+            </button>
+          </div>
+        </div>
+
         <!-- Camera Off Splash / Start Screen -->
         <div id="camera_off_prompt" class="p-4 sm:p-6 text-center">
           <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl sm:text-3xl mb-3 sm:mb-4 mx-auto">📷</div>
@@ -161,36 +197,45 @@
           </p>
           <button id="start_cam_btn"
             class="px-5 sm:px-7 py-2.5 sm:py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/30 transition-all active:scale-95 flex items-center gap-2 mx-auto">
-            ▶ Start Camera &amp; Workout
+              ▶ Start Camera &amp; Workout
           </button>
           <p class="text-[10px] text-slate-500 mt-2 sm:mt-3">100% on-device MediaPipe vision • Privacy guaranteed.</p>
         </div>
 
       </div>
 
-      <!-- Exercise Info Card -->
-      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div class="flex-1 min-w-0">
-          <div class="flex flex-wrap items-center gap-2 mb-1">
-            <h3 id="current_exercise_title" class="text-sm font-bold text-white leading-tight">Bodyweight Squat</h3>
-            <span id="current_exercise_equipment" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium shrink-0">Bodyweight</span>
+      <!-- Exercise Info Card (Fixed Stacked Layout: Never Squashes Tip Text) -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 shadow-lg">
+        <!-- Row 1: Exercise Title, Badges & Recommended Angle -->
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 id="current_exercise_title" class="text-base font-extrabold text-white leading-tight">Bodyweight Squat</h3>
+            <span id="current_exercise_equipment" class="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium">Bodyweight</span>
+            <span id="current_exercise_muscles" class="text-[10px] text-slate-400 bg-slate-800/70 border border-slate-700/60 px-2.5 py-0.5 rounded-full">Target: Quads, Glutes</span>
           </div>
-          <p id="current_exercise_tip" class="text-[11px] text-amber-300/90 leading-relaxed bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5">
-            Stand 6-8 ft back. Camera must see ankles to nose.
+          <span id="recommended_camera_angle" class="text-[11px] text-cyan-400 font-mono bg-cyan-950/80 border border-cyan-800/50 px-2.5 py-1 rounded-lg flex items-center gap-1">📷 Front/45°</span>
+        </div>
+
+        <!-- Row 2: Full-Width Setup Tip (100% width, immune to flex squashing) -->
+        <div class="w-full">
+          <p id="current_exercise_tip" class="w-full text-xs text-amber-200/95 leading-relaxed bg-amber-500/10 border border-amber-500/25 rounded-xl px-3.5 py-2.5 shadow-sm">
+            Stand feet shoulder-width, toes 15-30° out. Camera must see ANKLES to NOSE.
           </p>
         </div>
-        <div class="flex flex-wrap items-center gap-2 shrink-0">
-          <button id="start_warmup_btn" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1 active:scale-95 shadow-sm" title="2-Minute Guided Joint Mobility Warm-Up">
-            <span>🧘‍♂️</span> 2-Min Warm-Up
-          </button>
-          <button id="start_cooldown_btn" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition flex items-center gap-1 active:scale-95 shadow-sm" title="2-Minute Guided Stretching Cool-Down">
-            <span>🧊</span> 2-Min Cool-Down
-          </button>
+
+        <!-- Row 3: Action Buttons (Warm-Up, Cool-Down, Tutorial) -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="start_warmup_btn" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition flex items-center gap-1.5 active:scale-95 shadow-sm" title="2-Minute Guided Live-Camera Warm-Up">
+              <span>🧘‍♂️</span> 2-Min Live Warm-Up
+            </button>
+            <button id="start_cooldown_btn" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition flex items-center gap-1.5 active:scale-95 shadow-sm" title="2-Minute Guided Live-Camera Cool-Down">
+              <span>🧊</span> 2-Min Live Cool-Down
+            </button>
+          </div>
           <button id="how_to_btn" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 transition flex items-center gap-1.5 shadow-sm active:scale-95">
             <span>🎬</span> How to Do It (Tutorial)
           </button>
-          <span id="recommended_camera_angle" class="text-[10px] text-cyan-400 font-mono bg-cyan-950/60 border border-cyan-800/40 px-2.5 py-1 rounded-lg">📷 Front/45°</span>
-          <span id="current_exercise_muscles"  class="text-[10px] text-slate-400 bg-slate-800/60 px-2.5 py-1 rounded-lg">Target: Quads, Glutes</span>
         </div>
       </div>
 

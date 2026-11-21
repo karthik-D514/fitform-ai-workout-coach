@@ -53,12 +53,14 @@ export const LM = {
 
 export const EXERCISE_CATEGORIES = {
   ALL: 'all',
+  WARMUP: 'warmup',
   BODYWEIGHT: 'bodyweight',
   PULLUPS: 'pullups',
   DUMBBELLS: 'dumbbells',
   CURL_ROD: 'curl_rod',
   RESISTANCE_TUBES: 'resistance_tubes',
-  AB_ROLLER: 'ab_roller'
+  AB_ROLLER: 'ab_roller',
+  COOLDOWN: 'cooldown'
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1781,6 +1783,511 @@ export const EXERCISES = [
         liveAngles: {
           'Extension': `${hipAngle}° (Full: >150°)`,
           'Spine Safety': `${spineAngle}° (Must stay >155°)`
+        },
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_HIP, LM.LEFT_KNEE]
+      };
+    }
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  7. WARM-UP & MOBILITY (LIVE ARENA AI TRACKED)
+  // ══════════════════════════════════════════════════════════════════════════
+  {
+    id: 'warmup_arm_circles',
+    name: 'Warm-Up: Arm Circles & Rotations',
+    category: EXERCISE_CATEGORIES.WARMUP,
+    equipment: 'Bodyweight',
+    targetMuscles: 'Deltoids, Rotator Cuffs, Upper Back',
+    recommendedCamera: 'Front view, arms extended (stand 6-8 ft back)',
+    setupTip: 'Extend arms straight out to sides at shoulder height. Make continuous, wide circular rotations.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Right Shoulder': LM.RIGHT_SHOULDER,
+      'Left Elbow': LM.LEFT_ELBOW, 'Right Elbow': LM.RIGHT_ELBOW,
+      'Left Wrist': LM.LEFT_WRIST, 'Right Wrist': LM.RIGHT_WRIST
+    },
+    state: freshState({ stage: 'EXTEND', circlePhase: 'TOP', lastRotTime: 0 }),
+    reset() { this.state = freshState({ stage: 'EXTEND', circlePhase: 'TOP', lastRotTime: 0 }); },
+
+    evaluate(landmarks, Bio) {
+      const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
+      if (!ok) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: `Move back — cannot see: ${missingJoints.join(', ')}`,
+          errors: [`Cannot see: ${missingJoints.join(', ')}`],
+          liveAngles: {},
+          activeLandmarks: [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_ELBOW, LM.RIGHT_ELBOW]
+        };
+      }
+
+      const leftArmAngle = Bio.calculateAngleSmoothed('w_larm', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_ELBOW], landmarks[LM.LEFT_WRIST]);
+      const rightArmAngle = Bio.calculateAngleSmoothed('w_rarm', landmarks[LM.RIGHT_SHOULDER], landmarks[LM.RIGHT_ELBOW], landmarks[LM.RIGHT_WRIST]);
+      const avgArmExtension = Math.round((leftArmAngle + rightArmAngle) / 2);
+
+      const lWrist = landmarks[LM.LEFT_WRIST];
+      const rWrist = landmarks[LM.RIGHT_WRIST];
+      const lShoulder = landmarks[LM.LEFT_SHOULDER];
+      const rShoulder = landmarks[LM.RIGHT_SHOULDER];
+      const avgShoulderY = (lShoulder.y + rShoulder.y) / 2;
+      const avgWristY = (lWrist.y + rWrist.y) / 2;
+      const relY = avgWristY - avgShoulderY;
+
+      const errors = [];
+      let formScore = 100;
+
+      if (avgArmExtension < 125) {
+        errors.push('Straighten arms outward — avoid bent elbows');
+        formScore -= 25;
+      }
+      if (relY > 0.35) {
+        errors.push('Lift arms up to shoulder level');
+        formScore -= 20;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Make wide circular motions with extended arms';
+      let stateLabel = 'Circling Arms';
+      let repCompleted = false;
+      const now = Date.now();
+
+      if (this.state.stage === 'EXTEND') {
+        if (relY <= 0.20) {
+          this.state.stage = 'ROTATING';
+          this.state.circlePhase = 'TOP';
+        }
+        stateLabel = 'Extend Arms Wide';
+        feedback = 'Hold arms at shoulder height and start circling';
+      } else if (this.state.stage === 'ROTATING') {
+        if (this.state.circlePhase === 'TOP' && relY > 0.06) {
+          this.state.circlePhase = 'BOTTOM';
+        } else if (this.state.circlePhase === 'BOTTOM' && relY < 0.02) {
+          if (now - (this.state.lastRotTime || 0) > 400 && formOk) {
+            this.state.repCount++;
+            this.state.lastRotTime = now;
+            repCompleted = true;
+            feedback = `Rotation ${this.state.repCount} ✓ Smooth mobility!`;
+          }
+          this.state.circlePhase = 'TOP';
+        }
+        stateLabel = `Circling (${avgArmExtension}°)`;
+        if (formOk && !repCompleted) feedback = 'Keep rhythmic circular flow';
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted,
+        repCount: this.state.repCount,
+        stateLabel,
+        feedback,
+        errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Left Arm': `${leftArmAngle}° (Goal >135°)`,
+          'Right Arm': `${rightArmAngle}° (Goal >135°)`,
+          'Arm Height': relY <= 0.25 ? '✓ Shoulder Level' : '⚠ Arms Too Low',
+          'Rotations': `${this.state.repCount}`
+        },
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_ELBOW, LM.RIGHT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_WRIST]
+      };
+    }
+  },
+
+  {
+    id: 'warmup_torso_twists',
+    name: 'Warm-Up: Torso Twists & Spine Mobility',
+    category: EXERCISE_CATEGORIES.WARMUP,
+    equipment: 'Bodyweight',
+    targetMuscles: 'Thoracic Spine, Core, Obliques, Hips',
+    recommendedCamera: 'Front view, full body visible',
+    setupTip: 'Feet shoulder-width apart, knees soft. Rotate torso smoothly from side to side with arms relaxed.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Right Shoulder': LM.RIGHT_SHOULDER,
+      'Left Hip': LM.LEFT_HIP, 'Right Hip': LM.RIGHT_HIP
+    },
+    state: freshState({ stage: 'CENTER', lastTwistSide: null, lastRepTime: 0 }),
+    reset() { this.state = freshState({ stage: 'CENTER', lastTwistSide: null, lastRepTime: 0 }); },
+
+    evaluate(landmarks, Bio) {
+      const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
+      if (!ok) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: `Move back — cannot see: ${missingJoints.join(', ')}`,
+          errors: [`Cannot see: ${missingJoints.join(', ')}`],
+          liveAngles: {},
+          activeLandmarks: [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_HIP, LM.RIGHT_HIP]
+        };
+      }
+
+      const ls = landmarks[LM.LEFT_SHOULDER];
+      const rs = landmarks[LM.RIGHT_SHOULDER];
+      const lh = landmarks[LM.LEFT_HIP];
+      const rh = landmarks[LM.RIGHT_HIP];
+
+      const shoulderMidX = (ls.x + rs.x) / 2;
+      const hipMidX = (lh.x + rh.x) / 2;
+      const twistOffset = Math.round((shoulderMidX - hipMidX) * 200);
+
+      const spineAngle = Bio.calcAngleWithVerticalSmoothed('w_twist_spine',
+        { x: shoulderMidX, y: (ls.y + rs.y) / 2 },
+        { x: hipMidX, y: (lh.y + rh.y) / 2 }
+      );
+
+      const errors = [];
+      let formScore = 100;
+
+      if (spineAngle > 22) {
+        errors.push('Avoid leaning sideways — rotate around tall spine');
+        formScore -= 25;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Gently twist torso side to side';
+      let stateLabel = 'Center';
+      let repCompleted = false;
+      const now = Date.now();
+
+      if (Math.abs(twistOffset) < 5) {
+        stateLabel = 'Center — Rotate Torso';
+        feedback = 'Rotate smoothly left, then right';
+      } else if (twistOffset >= 8) {
+        stateLabel = 'Twisting Left ↺';
+        if (this.state.lastTwistSide === 'RIGHT' && formOk && (now - this.state.lastRepTime > 450)) {
+          this.state.repCount++;
+          this.state.lastRepTime = now;
+          this.state.lastTwistSide = 'LEFT';
+          repCompleted = true;
+          feedback = `Twist ${this.state.repCount} ✓ Great spinal rotation!`;
+        } else if (!this.state.lastTwistSide) {
+          this.state.lastTwistSide = 'LEFT';
+        }
+      } else if (twistOffset <= -8) {
+        stateLabel = 'Twisting Right ↻';
+        if (this.state.lastTwistSide === 'LEFT' && formOk && (now - this.state.lastRepTime > 450)) {
+          this.state.repCount++;
+          this.state.lastRepTime = now;
+          this.state.lastTwistSide = 'RIGHT';
+          repCompleted = true;
+          feedback = `Twist ${this.state.repCount} ✓ Great spinal rotation!`;
+        } else if (!this.state.lastTwistSide) {
+          this.state.lastTwistSide = 'RIGHT';
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted,
+        repCount: this.state.repCount,
+        stateLabel,
+        feedback,
+        errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Spine Lean': `${spineAngle}° (Keep <20°)`,
+          'Twist Offset': `${twistOffset}`,
+          'Twist State': stateLabel,
+          'Total Twists': `${this.state.repCount}`
+        },
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_HIP, LM.RIGHT_HIP]
+      };
+    }
+  },
+
+  {
+    id: 'warmup_air_squats',
+    name: 'Warm-Up: Mobility Air Squats',
+    category: EXERCISE_CATEGORIES.WARMUP,
+    equipment: 'Bodyweight',
+    targetMuscles: 'Knees, Hips, Glutes, Synovial Joint Fluid',
+    recommendedCamera: 'Front or 45° angle, full body visible',
+    setupTip: 'Perform smooth, shallow rhythmic squats to lubricate hips and knees. 1s pause at bottom.',
+    requiredLandmarks: {
+      'Left Hip': LM.LEFT_HIP, 'Left Knee': LM.LEFT_KNEE, 'Left Ankle': LM.LEFT_ANKLE,
+      'Right Hip': LM.RIGHT_HIP, 'Right Knee': LM.RIGHT_KNEE, 'Right Ankle': LM.RIGHT_ANKLE
+    },
+    state: freshState({ stage: 'STAND' }),
+    reset() { this.state = freshState({ stage: 'STAND' }); },
+
+    evaluate(landmarks, Bio) {
+      const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
+      if (!ok) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: `Move back — cannot see: ${missingJoints.join(', ')}`,
+          errors: [`Cannot see: ${missingJoints.join(', ')}`],
+          liveAngles: {},
+          activeLandmarks: [LM.LEFT_KNEE, LM.RIGHT_KNEE]
+        };
+      }
+
+      const leftKnee = Bio.calculateAngleSmoothed('w_sq_lk', landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE], landmarks[LM.LEFT_ANKLE]);
+      const rightKnee = Bio.calculateAngleSmoothed('w_sq_rk', landmarks[LM.RIGHT_HIP], landmarks[LM.RIGHT_KNEE], landmarks[LM.RIGHT_ANKLE]);
+      const avgKnee = Math.round((leftKnee + rightKnee) / 2);
+
+      const torsoAngle = Bio.calcAngleWithVerticalSmoothed('w_sq_torso',
+        landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
+
+      const hipDist = Bio.distance(landmarks[LM.LEFT_HIP], landmarks[LM.RIGHT_HIP]);
+      const kneeDist = Bio.distance(landmarks[LM.LEFT_KNEE], landmarks[LM.RIGHT_KNEE]);
+      const valgus = kneeDist < hipDist * 0.70 && avgKnee < 140;
+
+      const errors = [];
+      let formScore = 100;
+
+      if (torsoAngle > 55) {
+        errors.push('Chest up! Keep torso tall during mobility squat');
+        formScore -= 25;
+      }
+      if (valgus) {
+        errors.push('Push knees outward over toes');
+        formScore -= 30;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Rhythmic mobility squat — lubricate joints';
+      let stateLabel = 'Standing';
+      let repCompleted = false;
+
+      const { stage } = this.state;
+      if (stage === 'STAND' || stage === 'IDLE') {
+        if (avgKnee < 155) {
+          this.state.stage = 'DESCEND';
+          this.state.bottomFormOk = formOk;
+        }
+        stateLabel = 'Standing — Ease Down';
+        feedback = 'Smooth rhythmic tempo';
+      } else if (stage === 'DESCEND') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (avgKnee <= 115) {
+          this.state.stage = 'BOTTOM';
+          stateLabel = 'Good Mobility Depth!';
+          feedback = 'Now smoothly stand back up';
+        } else {
+          stateLabel = `Descending... ${avgKnee}°`;
+        }
+      } else if (stage === 'BOTTOM') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (avgKnee > 130) {
+          this.state.stage = 'ASCEND';
+          stateLabel = 'Rising';
+        }
+      } else if (stage === 'ASCEND') {
+        if (avgKnee > 158) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > 400 && this.state.bottomFormOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Warm-up Rep ${this.state.repCount} ✓ Joints primed!`;
+          }
+          this.state.stage = 'STAND';
+          this.state.bottomFormOk = false;
+          stateLabel = 'Standing';
+        } else {
+          stateLabel = `Rising... ${avgKnee}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted,
+        repCount: this.state.repCount,
+        stateLabel,
+        feedback,
+        errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Knee Angle': `${avgKnee}° (Goal ≤115°)`,
+          'Torso Lean': `${torsoAngle}° (Keep <50°)`,
+          'Knee Alignment': valgus ? '⚠ Knees Caving' : '✓ Knees Out',
+          'Mobility Reps': `${this.state.repCount}`
+        },
+        activeLandmarks: [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE]
+      };
+    }
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  8. COOL-DOWN & STRETCHING (LIVE ARENA AI TRACKED)
+  // ══════════════════════════════════════════════════════════════════════════
+  {
+    id: 'cooldown_quad_stretch',
+    name: 'Cool-Down: Standing Quad & Hip Stretch',
+    category: EXERCISE_CATEGORIES.COOLDOWN,
+    equipment: 'Bodyweight',
+    targetMuscles: 'Quadriceps, Hip Flexors, Psoas',
+    recommendedCamera: 'Front or Side profile, full body visible',
+    setupTip: 'Stand tall, hold one ankle behind you toward glutes. Hold stretch with chest tall.',
+    requiredLandmarks: {
+      'Left Hip': LM.LEFT_HIP, 'Left Knee': LM.LEFT_KNEE, 'Left Ankle': LM.LEFT_ANKLE,
+      'Right Hip': LM.RIGHT_HIP, 'Right Knee': LM.RIGHT_KNEE, 'Right Ankle': LM.RIGHT_ANKLE
+    },
+    state: freshState({ stage: 'STRETCH', holdSeconds: 0, lastTick: 0 }),
+    reset() { this.state = freshState({ stage: 'STRETCH', holdSeconds: 0, lastTick: 0 }); },
+
+    evaluate(landmarks, Bio) {
+      const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
+      if (!ok) {
+        return {
+          repCompleted: false, repCount: this.state.holdSeconds, unit: 'sec',
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: `Move back — cannot see: ${missingJoints.join(', ')}`,
+          errors: [`Cannot see: ${missingJoints.join(', ')}`],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_KNEE, LM.RIGHT_KNEE]
+        };
+      }
+
+      const lKnee = Bio.calculateAngleSmoothed('cd_lk', landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE], landmarks[LM.LEFT_ANKLE]);
+      const rKnee = Bio.calculateAngleSmoothed('cd_rk', landmarks[LM.RIGHT_HIP], landmarks[LM.RIGHT_KNEE], landmarks[LM.RIGHT_ANKLE]);
+      const minKnee = Math.min(lKnee, rKnee);
+
+      const torsoAngle = Bio.calcAngleWithVerticalSmoothed('cd_torso', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
+
+      const errors = [];
+      let formScore = 100;
+      if (torsoAngle > 30) {
+        errors.push('Keep chest upright — avoid leaning forward');
+        formScore -= 20;
+      }
+
+      const inStretch = minKnee < 85;
+      const formOk = inStretch && errors.length === 0;
+      const now = Date.now();
+
+      if (formOk) {
+        if (!this.state.lastTick) this.state.lastTick = now;
+        if (now - this.state.lastTick >= 1000) {
+          this.state.holdSeconds += Math.floor((now - this.state.lastTick) / 1000);
+          this.state.lastTick = now;
+        }
+      } else {
+        this.state.lastTick = now;
+      }
+
+      let stateLabel = inStretch ? 'Stretching Quad ✓' : 'Pull Ankle to Glute';
+      let feedback = inStretch ? 'Hold tall, breathe deeply through nose' : 'Gently pull one heel toward glutes';
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted: false, repCount: this.state.holdSeconds, unit: 'sec',
+        stateLabel, feedback, errors, formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Flexed Knee': `${minKnee}° (Goal <85°)`,
+          'Torso Posture': `${torsoAngle}° (Keep <25°)`,
+          'Stretch Hold': `${this.state.holdSeconds}s`
+        },
+        activeLandmarks: [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE]
+      };
+    }
+  },
+
+  {
+    id: 'cooldown_chest_opener',
+    name: 'Cool-Down: Chest & Shoulder Opener',
+    category: EXERCISE_CATEGORIES.COOLDOWN,
+    equipment: 'Bodyweight',
+    targetMuscles: 'Pectorals, Anterior Deltoids, Biceps',
+    recommendedCamera: 'Front view, stand 6-8 ft back',
+    setupTip: 'Extend arms wide or clasp hands behind back. Open chest, lift sternum, and breathe slowly.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Right Shoulder': LM.RIGHT_SHOULDER,
+      'Left Elbow': LM.LEFT_ELBOW, 'Right Elbow': LM.RIGHT_ELBOW
+    },
+    state: freshState({ stage: 'STRETCH', holdSeconds: 0, lastTick: 0 }),
+    reset() { this.state = freshState({ stage: 'STRETCH', holdSeconds: 0, lastTick: 0 }); },
+
+    evaluate(landmarks, Bio) {
+      const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
+      if (!ok) {
+        return {
+          repCompleted: false, repCount: this.state.holdSeconds, unit: 'sec',
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: `Move back — cannot see: ${missingJoints.join(', ')}`,
+          errors: [`Cannot see: ${missingJoints.join(', ')}`],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER]
+        };
+      }
+
+      const lShoulder = landmarks[LM.LEFT_SHOULDER];
+      const rShoulder = landmarks[LM.RIGHT_SHOULDER];
+      const shoulderDist = Bio.distance(lShoulder, rShoulder);
+
+      const now = Date.now();
+      if (!this.state.lastTick) this.state.lastTick = now;
+      if (now - this.state.lastTick >= 1000) {
+        this.state.holdSeconds += Math.floor((now - this.state.lastTick) / 1000);
+        this.state.lastTick = now;
+      }
+
+      return {
+        repCompleted: false, repCount: this.state.holdSeconds, unit: 'sec',
+        stateLabel: 'Chest Opened ✓', feedback: 'Deep belly breaths, release tension from chest and shoulders',
+        errors: [], formScore: 100,
+        liveAngles: {
+          'Chest Expansion': 'Open ✓',
+          'Hold Time': `${this.state.holdSeconds}s`
+        },
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_ELBOW, LM.RIGHT_ELBOW]
+      };
+    }
+  },
+
+  {
+    id: 'cooldown_decompression',
+    name: 'Cool-Down: Hamstring & Spine Decompression',
+    category: EXERCISE_CATEGORIES.COOLDOWN,
+    equipment: 'Bodyweight',
+    targetMuscles: 'Hamstrings, Lumbar Spine, CNS Recovery',
+    recommendedCamera: 'Side or 45° angle, full body visible',
+    setupTip: 'Hinge forward gently at hips, soft knees, letting arms and head hang relaxed toward floor.',
+    requiredLandmarks: {
+      'Left Hip': LM.LEFT_HIP, 'Left Knee': LM.LEFT_KNEE, 'Left Shoulder': LM.LEFT_SHOULDER
+    },
+    state: freshState({ stage: 'STRETCH', holdSeconds: 0, lastTick: 0 }),
+    reset() { this.state = freshState({ stage: 'STRETCH', holdSeconds: 0, lastTick: 0 }); },
+
+    evaluate(landmarks, Bio) {
+      const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
+      if (!ok) {
+        return {
+          repCompleted: false, repCount: this.state.holdSeconds, unit: 'sec',
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: `Move back — cannot see: ${missingJoints.join(', ')}`,
+          errors: [`Cannot see: ${missingJoints.join(', ')}`],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_HIP, LM.LEFT_KNEE]
+        };
+      }
+
+      const hipHinge = Bio.calculateAngleSmoothed('cd_hinge', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE]);
+
+      const inHinge = hipHinge < 135;
+      const now = Date.now();
+
+      if (inHinge) {
+        if (!this.state.lastTick) this.state.lastTick = now;
+        if (now - this.state.lastTick >= 1000) {
+          this.state.holdSeconds += Math.floor((now - this.state.lastTick) / 1000);
+          this.state.lastTick = now;
+        }
+      } else {
+        this.state.lastTick = now;
+      }
+
+      let stateLabel = inHinge ? 'Decompressing Spine ✓' : 'Hinge Forward at Hips';
+      let feedback = inHinge ? 'Exhale slowly, letting neck and shoulders relax completely' : 'Gently fold forward at the hips';
+
+      return {
+        repCompleted: false, repCount: this.state.holdSeconds, unit: 'sec',
+        stateLabel, feedback, errors: [], formScore: 100,
+        liveAngles: {
+          'Hip Fold': `${hipHinge}° (Target <130°)`,
+          'Hold Time': `${this.state.holdSeconds}s`
         },
         activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_HIP, LM.LEFT_KNEE]
       };

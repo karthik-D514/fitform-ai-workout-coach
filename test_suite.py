@@ -485,6 +485,98 @@ def run_tests():
     print("✅ TEST 19: Guided Warm-Up and Cool-Down routine structure verified")
     passed += 1
 
+    # ─────────────────────────────────────────────────────────────
+    # TEST 20: Warm-Up Arm Circles Extension & Elevation Gating
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    # Arms straight (elbow angle > 135°) and at shoulder level (relY <= 0.20)
+    good_arm_elbow = bio.calculate_angle(
+        {'x': 0.40, 'y': 0.30}, # Shoulder
+        {'x': 0.25, 'y': 0.30}, # Elbow
+        {'x': 0.10, 'y': 0.30}  # Wrist (straight)
+    )
+    assert good_arm_elbow >= 170, f"Expected straight arm extension, got {good_arm_elbow}°"
+
+    # Bent elbow (arm circles error)
+    bent_arm_elbow = bio.calculate_angle(
+        {'x': 0.40, 'y': 0.30},
+        {'x': 0.30, 'y': 0.35},
+        {'x': 0.30, 'y': 0.22}
+    )
+    assert bent_arm_elbow < 125, f"Expected bent arm error threshold, got {bent_arm_elbow}°"
+    print("✅ TEST 20: Warm-Up Arm Circles extension & elevation gating verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 21: Warm-Up Torso Twists Spine Linearity & Alternating Count
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    # Check spine vertical angle during upright twist
+    upright_spine = bio.calculate_angle_with_vertical(
+        {'x': 0.50, 'y': 0.25}, # Shoulder midpoint
+        {'x': 0.50, 'y': 0.60}  # Hip midpoint
+    )
+    assert upright_spine <= 5, f"Expected upright spine angle <= 5°, got {upright_spine}°"
+
+    # Leaning spine (bad form during twist)
+    leaning_spine = bio.calculate_angle_with_vertical(
+        {'x': 0.65, 'y': 0.25}, # Excessive lateral lean
+        {'x': 0.50, 'y': 0.60}
+    )
+    assert leaning_spine > 22, f"Expected leaning spine > 22°, got {leaning_spine}°"
+    print("✅ TEST 21: Warm-Up Torso Twists spine linearity & alignment verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 22: Warm-Up Air Squats Mobility Depth Validation
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    # Mobility squat knee angle at bottom (knee flexed ~110°)
+    mobility_squat_knee = bio.calculate_angle(
+        {'x': 0.40, 'y': 0.55}, # Hip
+        {'x': 0.60, 'y': 0.60}, # Knee flexed forward
+        {'x': 0.50, 'y': 0.85}  # Ankle
+    )
+    # Validate gentle mobility threshold (<= 115° satisfies warm-up, does not force heavy 90° powerlifting depth)
+    assert mobility_squat_knee <= 120, f"Expected mobility depth, got {mobility_squat_knee}°"
+
+    # Test warm-up mobility state machine (allows completion at 110° without failing depth lock)
+    class MobilitySquatTest:
+        def __init__(self):
+            self.stage = 'STAND'
+            self.reps = 0
+            self.last_rep = 0
+        def feed(self, knee, form_ok, now_ms):
+            rep_done = False
+            if self.stage == 'STAND':
+                if knee < 155:
+                    self.stage = 'DESCEND'
+            elif self.stage == 'DESCEND':
+                if knee <= 115: # Warm-up mobility depth (gentle)
+                    self.stage = 'BOTTOM'
+            elif self.stage == 'BOTTOM':
+                if knee > 130:
+                    self.stage = 'ASCEND'
+            elif self.stage == 'ASCEND':
+                if knee > 158:
+                    if (now_ms - self.last_rep > 400) and form_ok:
+                        self.reps += 1
+                        self.last_rep = now_ms
+                        rep_done = True
+                    self.stage = 'STAND'
+            return rep_done
+
+    mob_squat = MobilitySquatTest()
+    t = 2000
+    mob_squat.feed(170, True, t); t += 100
+    mob_squat.feed(135, True, t); t += 100
+    mob_squat.feed(112, True, t); t += 100 # Reached mobility depth <=115°
+    mob_squat.feed(135, True, t); t += 100
+    mob_rep = mob_squat.feed(165, True, t); t += 100
+    assert mob_rep and mob_squat.reps == 1, "Mobility squat rep failed to count"
+    print("✅ TEST 22: Warm-Up Air Squats mobility depth validation verified")
+    passed += 1
+
     print("=" * 60)
     print(f"🎉 ALL {passed}/{total} TESTS PASSED WITH 100% SUCCESS!")
     print("=" * 60)

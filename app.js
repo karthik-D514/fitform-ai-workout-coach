@@ -39,7 +39,7 @@ class FitFormApp {
     this.voiceCoach     = new VoiceCoach();
     this.tutorialModal  = new TutorialModal();
     this.adaptiveEngine = new AdaptiveEngine();
-    this.routineManager = new RoutineManager(this.voiceCoach);
+    this.routineManager = new RoutineManager(this.voiceCoach, this);
     this.calendarView   = new CalendarView('calendar_view_container');
     this.libraryView    = new LibraryView('library_view_container', (id) => this.launchFromLibrary(id));
     this.analyticsView  = new AnalyticsView('analytics_view_container', (id) => this.launchFromLibrary(id));
@@ -76,12 +76,14 @@ class FitFormApp {
     const filterContainer = document.getElementById('equipment_filters');
     const categories = [
       { id: EXERCISE_CATEGORIES.ALL,             label: 'All',             icon: '⚡' },
+      { id: EXERCISE_CATEGORIES.WARMUP,          label: 'Warm-Up & Mobility', icon: '🧘' },
       { id: EXERCISE_CATEGORIES.BODYWEIGHT,       label: 'Bodyweight',      icon: '🤸' },
       { id: EXERCISE_CATEGORIES.PULLUPS,          label: 'Pull-Ups / Bar',  icon: '🏋️' },
       { id: EXERCISE_CATEGORIES.DUMBBELLS,        label: 'Dumbbells',       icon: '💪' },
       { id: EXERCISE_CATEGORIES.CURL_ROD,         label: 'Curl Rod',        icon: '🦾' },
       { id: EXERCISE_CATEGORIES.RESISTANCE_TUBES, label: 'Bands',           icon: '🎗️' },
-      { id: EXERCISE_CATEGORIES.AB_ROLLER,        label: 'Ab Roller',       icon: '🔄' }
+      { id: EXERCISE_CATEGORIES.AB_ROLLER,        label: 'Ab Roller',       icon: '🔄' },
+      { id: EXERCISE_CATEGORIES.COOLDOWN,        label: 'Cool-Down & Stretch', icon: '🧊' }
     ];
 
     filterContainer.innerHTML = categories.map((c) => `
@@ -261,7 +263,7 @@ class FitFormApp {
     document.getElementById('current_exercise_title').innerText = this.currentExercise.name;
     document.getElementById('current_exercise_equipment').innerText = `Equipment: ${this.currentExercise.equipment}`;
     document.getElementById('current_exercise_muscles').innerText = `Target: ${this.currentExercise.targetMuscles}`;
-    document.getElementById('current_exercise_tip').innerText = this.currentExercise.setupTip;
+    document.getElementById('current_exercise_tip').innerText = `💡 ${this.currentExercise.setupTip}`;
     document.getElementById('recommended_camera_angle').innerText = `📷 ${this.currentExercise.recommendedCamera}`;
   }
 

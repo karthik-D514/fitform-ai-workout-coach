@@ -545,4 +545,90 @@ export const TUTORIALS = {
       { label: 'Pulling Back', hipAngle: 110 },
     ],
   },
+
+  // ─── WARM-UP & MOBILITY ──────────────────────────────────────────────────
+
+  warmup_arm_circles: {
+    youtubeId: '140RTNMJ5Bo',
+    youtubeTitle: 'Dynamic Arm Circles & Shoulder Warm-Up Mobility',
+    keyPoints: [
+      'Stand tall, feet shoulder-width apart, core lightly engaged',
+      'Extend arms straight out to sides at exact shoulder height',
+      'Keep elbows locked straight with long reach through fingertips',
+      'Rotate in smooth rhythmic circles (forward first, then backward)',
+      'Gradually expand circle diameter as shoulder joints warm up',
+    ],
+    commonMistakes: [
+      '❌ Letting elbows bend excessively (keeps arms straight)',
+      '❌ Dropping arms below shoulder level (reduces deltoid recruitment)',
+      '❌ Shrugging shoulders up toward ears (keep traps relaxed)',
+    ],
+    cameraSetup: [
+      '📷 Angle: Front view so camera sees full arm span',
+      '📏 Distance: 6–8 ft back to fit outstretched arms',
+      '📐 Height: Waist or chest height',
+    ],
+    breathingCue: 'Inhale through nose, exhale through mouth steadily',
+    skeletonFrames: [
+      { label: 'Arms Level', elbowAngle: 175 },
+      { label: 'Circle Apex', elbowAngle: 170 },
+      { label: 'Full Rotation', elbowAngle: 175 },
+    ],
+  },
+
+  warmup_torso_twists: {
+    youtubeId: 'v8Jt_xQkF0E',
+    youtubeTitle: 'Thoracic Spine Mobility & Standing Torso Twists',
+    keyPoints: [
+      'Stand with wide athletic stance, knees slightly bent (soft)',
+      'Keep pelvis and hips square to the front',
+      'Rotate through thoracic spine (upper/mid back) rather than lumbar',
+      'Let arms swing naturally and loosely with rotation',
+      'Maintain tall upright posture throughout rotation',
+    ],
+    commonMistakes: [
+      '❌ Twisting solely from hips or knees (mobilize upper spine)',
+      '❌ Lateral torso leaning side-to-side (rotate along vertical axis)',
+      '❌ Locking knees straight (keep knees soft)',
+    ],
+    cameraSetup: [
+      '📷 Angle: Front view with head, shoulders, and hips visible',
+      '📏 Distance: 6–8 ft away',
+      '📐 Height: Chest or waist level',
+    ],
+    breathingCue: 'Exhale on each outward twist, inhale returning to center',
+    skeletonFrames: [
+      { label: 'Center Stance', twistAngle: 0 },
+      { label: 'Left Rotation', twistAngle: 30 },
+      { label: 'Right Rotation', twistAngle: -30 },
+    ],
+  },
+
+  warmup_air_squats: {
+    youtubeId: 'C_VtOYc6j5c',
+    youtubeTitle: 'Mobility Air Squats for Joint Lubrication',
+    keyPoints: [
+      'Feet shoulder-width apart, toes turned outward 15–25°',
+      'Focus on smooth rhythmic cadence rather than heavy load',
+      'Squat to parallel or comfortable mobility depth (~110°)',
+      'Pause 1 second at the bottom to open hip capsules',
+      'Drive knees actively outward in line with toes',
+    ],
+    commonMistakes: [
+      '❌ Dropping chest excessively (keep eyes looking straight ahead)',
+      '❌ Knees caving inward (push knees out over pinky toes)',
+      '❌ Bouncing violently out of bottom (use controlled tempo)',
+    ],
+    cameraSetup: [
+      '📷 Angle: Front view or 45° angle',
+      '📏 Distance: 6–8 ft away with full body visible',
+      '📐 Height: Knee or waist level',
+    ],
+    breathingCue: 'Inhale descending → Exhale ascending to standing',
+    skeletonFrames: [
+      { label: 'Standing', kneeAngle: 175 },
+      { label: 'Mobility Depth', kneeAngle: 110 },
+      { label: 'Lockout', kneeAngle: 175 },
+    ],
+  },
 };

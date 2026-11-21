@@ -1,84 +1,141 @@
 /**
- * FitForm AI - Guided Warm-Up & Cool-Down Routine Manager (v4)
+ * FitForm AI - Guided Warm-Up & Cool-Down Routine Manager (v5 Live Arena)
  *
- * Pre-workout dynamic mobility to protect joints and prevent injury,
- * and post-workout static stretches to reduce muscle soreness.
+ * Pre-workout dynamic mobility and post-workout recovery stretches
+ * tracked with live camera AI and real-time skeleton pose analysis.
  */
 
 export class RoutineManager {
-  constructor(voiceCoach) {
+  constructor(voiceCoach, app = null) {
     this.voiceCoach = voiceCoach;
+    this.app = app;
     this.currentRoutine = null;
+    this.currentType = 'warmup'; // 'warmup' or 'cooldown'
     this.currentStepIndex = 0;
     this.timerSeconds = 0;
     this.intervalId = null;
+    this.savedExerciseId = null;
+    this.isActive = false;
 
     this.WARMUP_STEPS = [
       {
-        title: 'Arm & Shoulder Rotations',
+        exerciseId: 'warmup_arm_circles',
+        title: 'Arm Circles & Rotations',
         icon: '🔄',
-        target: 'Rotator Cuffs & Deltoids',
+        target: 'Rotator Cuffs, Deltoids & Shoulders',
         duration: 30,
-        tip: 'Make wide circular motions with both arms. 15s forward, then 15s backward.'
+        tip: 'Make wide circular motions with extended arms. 15s forward, then 15s backward.'
       },
       {
-        title: 'Torso Twists & Hip Openers',
+        exerciseId: 'warmup_torso_twists',
+        title: 'Torso Twists & Spine Mobility',
         icon: '🌪️',
-        target: 'Spine & Lumbar Mobility',
+        target: 'Thoracic Spine, Core & Obliques',
         duration: 30,
-        tip: 'Stand with feet wide. Gently rotate torso side to side with arms swinging freely.'
+        tip: 'Stand wide, soft knees. Gently rotate torso side to side with arms swinging freely.'
       },
       {
-        title: 'Air Squats & Glute Activation',
+        exerciseId: 'warmup_air_squats',
+        title: 'Mobility Air Squats',
         icon: '🦵',
-        target: 'Knees, Hips & Glutes',
+        target: 'Knees, Hips & Synovial Fluid',
         duration: 30,
-        tip: 'Perform smooth, shallow rhythmic squats to pump synovial fluid into knee joints.'
+        tip: 'Perform smooth rhythmic squats with 1s pause at bottom to prime hip and knee joints.'
       }
     ];
 
     this.COOLDOWN_STEPS = [
       {
+        exerciseId: 'cooldown_quad_stretch',
         title: 'Standing Quad & Hip Stretch',
         icon: '🦿',
         target: 'Quadriceps & Hip Flexors',
         duration: 30,
-        tip: 'Hold one ankle behind you, pull toward glutes, keep chest tall. 15s each leg.'
+        tip: 'Hold one ankle behind you toward glutes, chest tall. 15s each leg.'
       },
       {
-        title: 'Doorway Chest & Scapula Opener',
+        exerciseId: 'cooldown_chest_opener',
+        title: 'Chest & Shoulder Opener',
         icon: '🚪',
         target: 'Pectorals & Anterior Deltoids',
         duration: 30,
-        tip: 'Place forearms on doorframe and step through to stretch tight chest muscles.'
+        tip: 'Extend arms wide or clasp hands behind back. Open chest and breathe slowly.'
       },
       {
-        title: 'Deep Breathing & Decompression',
+        exerciseId: 'cooldown_decompression',
+        title: 'Spine Decompression & Breathing',
         icon: '🫁',
-        target: 'Central Nervous System Recovery',
+        target: 'Hamstrings, Lumbar Spine & CNS Recovery',
         duration: 30,
-        tip: 'Inhale through nose for 4s, hold 2s, exhale through mouth for 6s.'
+        tip: 'Hinge gently at hips, let head hang relaxed toward floor. Inhale 4s, exhale 6s.'
       }
     ];
   }
 
-  startRoutine(type = 'warmup') {
+  setApp(app) {
+    this.app = app;
+  }
+
+  async startRoutine(type = 'warmup') {
+    if (!this.app) {
+      console.error('FitFormApp instance not set on RoutineManager.');
+      return;
+    }
+
+    this.currentType = type;
     this.currentRoutine = type === 'warmup' ? this.WARMUP_STEPS : this.COOLDOWN_STEPS;
     this.currentStepIndex = 0;
-    this.showModal(type);
+    this.isActive = true;
+
+    // Remember previous exercise so we can restore it when routine finishes
+    if (!this.savedExerciseId && this.app.currentExercise) {
+      this.savedExerciseId = this.app.currentExercise.id;
+    }
+
+    // Switch to Arena tab if user was in another tab
+    if (this.app.activeView !== 'view_arena') {
+      this.app.switchView('view_arena');
+    }
+
+    // Auto-start camera if camera is currently off!
+    if (!this.app.isRunning) {
+      try {
+        await this.app.toggleCamera();
+      } catch (err) {
+        console.warn('Could not auto-start camera for routine:', err);
+      }
+    }
+
+    this.showHUD();
     this.runStep();
   }
 
-  showModal(type) {
-    let modal = document.getElementById('routine_modal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'routine_modal';
-      modal.className = 'fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4';
-      document.body.appendChild(modal);
+  showHUD() {
+    const hud = document.getElementById('arena_routine_hud');
+    if (!hud) return;
+    hud.classList.remove('hidden');
+    hud.classList.add('flex');
+
+    // Bind HUD buttons if not already bound
+    const nextBtn = document.getElementById('routine_hud_next_btn');
+    if (nextBtn && !nextBtn._bound) {
+      nextBtn._bound = true;
+      nextBtn.addEventListener('click', () => this.nextStep());
     }
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+
+    const exitBtn = document.getElementById('routine_hud_exit_btn');
+    if (exitBtn && !exitBtn._bound) {
+      exitBtn._bound = true;
+      exitBtn.addEventListener('click', () => this.exitRoutine());
+    }
+  }
+
+  hideHUD() {
+    const hud = document.getElementById('arena_routine_hud');
+    if (hud) {
+      hud.classList.add('hidden');
+      hud.classList.remove('flex');
+    }
   }
 
   runStep() {
@@ -89,15 +146,42 @@ export class RoutineManager {
     }
 
     this.timerSeconds = step.duration;
-    this.renderStep(step);
 
+    // Switch exercise in arena to the step's exercise
+    if (this.app && step.exerciseId) {
+      this.app.switchExercise(step.exerciseId);
+    }
+
+    // Update HUD elements
+    const iconEl = document.getElementById('routine_hud_icon');
+    const badgeEl = document.getElementById('routine_hud_badge');
+    const titleEl = document.getElementById('routine_hud_title');
+    const tipEl = document.getElementById('routine_hud_tip');
+    const timerEl = document.getElementById('routine_hud_timer');
+
+    const typeLabel = this.currentType === 'warmup' ? 'WARM-UP' : 'COOL-DOWN';
+    const badgeColor = this.currentType === 'warmup'
+      ? 'bg-amber-500/30 text-amber-300'
+      : 'bg-indigo-500/30 text-indigo-300';
+
+    if (iconEl) iconEl.innerText = step.icon;
+    if (badgeEl) {
+      badgeEl.className = `text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${badgeColor} font-mono`;
+      badgeEl.innerText = `${typeLabel} • MOVEMENT ${this.currentStepIndex + 1} OF ${this.currentRoutine.length}`;
+    }
+    if (titleEl) titleEl.innerText = step.title;
+    if (tipEl) tipEl.innerText = step.tip;
+    if (timerEl) timerEl.innerText = `${this.timerSeconds}s`;
+
+    // Voice announcement
     this.voiceCoach?.speak(`${step.title}. ${step.tip}`, true);
 
+    // Run 1-second interval timer
     if (this.intervalId) clearInterval(this.intervalId);
     this.intervalId = setInterval(() => {
       this.timerSeconds--;
-      const display = document.getElementById('routine_timer_display');
-      if (display) display.innerText = `${this.timerSeconds}s`;
+      const tEl = document.getElementById('routine_hud_timer');
+      if (tEl) tEl.innerText = `${this.timerSeconds}s`;
 
       if (this.timerSeconds <= 3 && this.timerSeconds > 0) {
         this.voiceCoach?.playCountdownBeep(false);
@@ -110,76 +194,45 @@ export class RoutineManager {
     }, 1000);
   }
 
-  renderStep(step) {
-    const modal = document.getElementById('routine_modal');
-    if (!modal) return;
-
-    modal.innerHTML = `
-      <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl animate-fade-in">
-        <div class="flex items-center justify-between text-xs font-semibold text-slate-400 mb-3 pb-2 border-b border-slate-800">
-          <span class="text-emerald-400 uppercase tracking-widest font-mono">Routine ${this.currentStepIndex + 1} of ${this.currentRoutine.length}</span>
-          <button id="close_routine_btn" class="text-slate-400 hover:text-white transition text-sm">✕ Skip</button>
-        </div>
-
-        <div class="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl mx-auto mb-3">
-          ${step.icon}
-        </div>
-
-        <h3 class="text-lg font-extrabold text-white mb-0.5">${step.title}</h3>
-        <span class="text-[11px] text-cyan-400 font-semibold block mb-2">${step.target}</span>
-
-        <div id="routine_timer_display" class="text-6xl font-black font-mono text-emerald-400 my-3 leading-none">
-          ${this.timerSeconds}s
-        </div>
-
-        <p class="text-xs text-slate-300 bg-slate-950/70 border border-slate-800 rounded-xl p-3 mb-5 leading-relaxed">
-          ${step.tip}
-        </p>
-
-        <div class="flex items-center gap-2">
-          <button id="next_routine_step_btn" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition active:scale-95 shadow-md shadow-emerald-500/20">
-            Next Movement ➔
-          </button>
-        </div>
-      </div>
-    `;
-
-    document.getElementById('close_routine_btn')?.addEventListener('click', () => this.close());
-    document.getElementById('next_routine_step_btn')?.addEventListener('click', () => {
-      clearInterval(this.intervalId);
-      this.currentStepIndex++;
-      this.runStep();
-    });
+  nextStep() {
+    if (this.intervalId) clearInterval(this.intervalId);
+    this.currentStepIndex++;
+    this.runStep();
   }
 
   completeRoutine() {
-    clearInterval(this.intervalId);
-    const modal = document.getElementById('routine_modal');
-    if (!modal) return;
+    if (this.intervalId) clearInterval(this.intervalId);
+    this.isActive = false;
+    this.hideHUD();
 
-    modal.innerHTML = `
-      <div class="bg-slate-900 border border-emerald-500/40 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
-        <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 text-3xl flex items-center justify-center mx-auto mb-3">
-          ✨
-        </div>
-        <h3 class="text-xl font-extrabold text-white mb-1">Routine Completed!</h3>
-        <p class="text-xs text-slate-400 mb-6">Your joints are warm, mobile, and primed for optimal muscle performance.</p>
-        <button id="finish_routine_btn" class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition active:scale-95">
-          Ready to Train 🚀
-        </button>
-      </div>
-    `;
+    const celebrationMsg = this.currentType === 'warmup'
+      ? 'Warm-up completed! Your joints and muscles are primed. Let\'s crush this workout!'
+      : 'Cool-down completed! Great recovery session. Rest and hydrate well!';
 
-    this.voiceCoach?.speak('Routine complete! You are ready to crush your workout.', true);
-    document.getElementById('finish_routine_btn')?.addEventListener('click', () => this.close());
+    this.voiceCoach?.playRepChime();
+    this.voiceCoach?.speak(celebrationMsg, true);
+
+    // Return Arena smoothly to user's main exercise
+    if (this.savedExerciseId && this.app) {
+      this.app.switchExercise(this.savedExerciseId);
+      this.savedExerciseId = null;
+    }
+  }
+
+  exitRoutine() {
+    if (this.intervalId) clearInterval(this.intervalId);
+    this.isActive = false;
+    this.hideHUD();
+    this.voiceCoach?.speak('Routine stopped.', true);
+
+    // Return to main exercise
+    if (this.savedExerciseId && this.app) {
+      this.app.switchExercise(this.savedExerciseId);
+      this.savedExerciseId = null;
+    }
   }
 
   close() {
-    if (this.intervalId) clearInterval(this.intervalId);
-    const modal = document.getElementById('routine_modal');
-    if (modal) {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-    }
+    this.exitRoutine();
   }
 }
