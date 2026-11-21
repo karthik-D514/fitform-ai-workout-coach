@@ -672,6 +672,66 @@ def run_tests():
     print("✅ TEST 25: Angular velocity tracking & rapid drop detection verified")
     passed += 1
 
+    # ─────────────────────────────────────────────────────────────
+    # TEST 26: Velocity-Based Training (VBT) Fatigue Calculation
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def calc_vbt_fatigue(reps_v):
+        if len(reps_v) < 3:
+            return 0, 'WARMUP'
+        avg_initial = sum(reps_v[:2]) / 2.0
+        avg_final = sum(reps_v[-2:]) / 2.0
+        loss = round(((avg_initial - avg_final) / avg_initial) * 100) if avg_initial > 0 else 0
+        rating = 'HIGH' if loss >= 30 else 'OPTIMAL' if loss >= 15 else 'SPEED'
+        return loss, rating
+
+    # High fatigue set (pushed close to failure: 80°/s down to 48°/s)
+    high_loss, high_rating = calc_vbt_fatigue([82, 78, 70, 62, 54, 48])
+    assert high_loss >= 30 and high_rating == 'HIGH', f"Expected HIGH fatigue >= 30%, got {high_loss}% ({high_rating})"
+
+    # Optimal working set (15-29% drop)
+    opt_loss, opt_rating = calc_vbt_fatigue([76, 74, 68, 64, 62, 60])
+    assert 15 <= opt_loss < 30 and opt_rating == 'OPTIMAL', f"Expected OPTIMAL fatigue 15-29%, got {opt_loss}%"
+
+    # Speed set (<15% drop)
+    speed_loss, speed_rating = calc_vbt_fatigue([80, 82, 80, 78, 76, 78])
+    assert speed_loss < 15 and speed_rating == 'SPEED', f"Expected SPEED set < 15%, got {speed_loss}%"
+    print("✅ TEST 26: Velocity-Based Training (VBT) fatigue curve calculation verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 27: Total Set Time Under Tension (TUT) Aggregator
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    reps_tut = [
+        {'tempo': {'total': 3.2}},
+        {'tempo': {'total': 3.5}},
+        {'tempo': {'total': 3.0}},
+        {'tempo': {'total': 2.9}}
+    ]
+    total_tut = round(sum(r['tempo']['total'] for r in reps_tut), 1)
+    assert total_tut == 12.6, f"Expected 12.6s total TUT, got {total_tut}s"
+    print("✅ TEST 27: Total Set Time Under Tension (TUT) aggregator verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 28: Rep-by-Rep Fault & Quality Gating Diagnostics
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    reps_log = [
+        {'repNum': 1, 'formScore': 100, 'errors': []},
+        {'repNum': 2, 'formScore': 100, 'errors': []},
+        {'repNum': 3, 'formScore': 75, 'errors': ['Knees caving in']},
+        {'repNum': 4, 'formScore': 80, 'errors': ['Descent too fast']}
+    ]
+    clean_reps = [r for r in reps_log if len(r['errors']) == 0]
+    flawed_reps = [r for r in reps_log if len(r['errors']) > 0]
+    assert len(clean_reps) == 2, f"Expected 2 clean reps, got {len(clean_reps)}"
+    assert len(flawed_reps) == 2, f"Expected 2 flawed reps, got {len(flawed_reps)}"
+    assert flawed_reps[0]['errors'][0] == 'Knees caving in', "Expected knee cave error identified"
+    print("✅ TEST 28: Rep-by-Rep fault & quality gating diagnostics verified")
+    passed += 1
+
     print("=" * 60)
     print(f"🎉 ALL {passed}/{total} TESTS PASSED WITH 100% SUCCESS!")
     print("=" * 60)

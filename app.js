@@ -28,6 +28,7 @@ import { AnalyticsView } from './analytics_view.js';
 import { AdaptiveEngine } from './adaptive_engine.js';
 import { RoutineManager } from './warmup_cooldown.js';
 import { TempoCoach } from './tempo_coach.js';
+import { SetRecapModal } from './set_recap_modal.js';
 
 class FitFormApp {
   constructor() {
@@ -42,6 +43,7 @@ class FitFormApp {
     this.adaptiveEngine = new AdaptiveEngine();
     this.tempoCoach     = new TempoCoach(this.voiceCoach);
     this.routineManager = new RoutineManager(this.voiceCoach, this);
+    this.setRecapModal  = new SetRecapModal(this.voiceCoach);
     this.calendarView   = new CalendarView('calendar_view_container');
     this.libraryView    = new LibraryView('library_view_container', (id) => this.launchFromLibrary(id));
     this.analyticsView  = new AnalyticsView('analytics_view_container', (id) => this.launchFromLibrary(id));
@@ -56,6 +58,7 @@ class FitFormApp {
 
     // Session
     this.formScores       = [];
+    this.currentSetReps   = [];
     this.currentRepCount  = 0;
     this.activeSet        = 1;
     this.lastFormAlertMs  = 0;
@@ -230,6 +233,7 @@ class FitFormApp {
     Biomechanics.resetSmoothingHistory(); // Clear EMA history
     this.tempoCoach?.reset();
     this.currentRepCount = 0;
+    this.currentSetReps = [];
     this.activeSet = 1;
     this.formScores = [];
     document.getElementById('rep_counter').innerText = '0';
@@ -552,6 +556,14 @@ class FitFormApp {
 
     // ── Handle rep completion ──────────────────────────────────────────────
     if (evalResult.repCompleted) {
+      this.currentSetReps.push({
+        repNum: this.currentRepCount,
+        formScore: evalResult.formScore || 100,
+        errors: [...(evalResult.errors || [])],
+        tempo: tempoState.lastRepTempo ? { ...tempoState.lastRepTempo } : null,
+        velocity: this.tempoCoach ? this.tempoCoach.currentAngularVelocity : 0
+      });
+
       this.voiceCoach.playRepChime();
       this.voiceCoach.speak(`Rep ${this.currentRepCount}!`, true);
       if (tempoState.tempoFeedback && tempoState.lastRepTempo.rating === 'TOO_FAST') {
@@ -890,12 +902,18 @@ class FitFormApp {
       this.voiceCoach.speak(`Set ${this.activeSet} logged! Great work.`, true);
     }
 
+    const completedSetNumber = this.activeSet;
+    const completedCount     = this.currentRepCount;
+    const completedRepsLog   = [...this.currentSetReps];
+
     this.activeSet++;
     document.getElementById('set_counter').innerText = `Set ${this.activeSet}`;
     this.currentRepCount = 0;
     this.formScores = [];
+    this.currentSetReps = [];
     this.currentExercise.reset();
     Biomechanics.resetSmoothingHistory();
+    this.tempoCoach?.reset();
     document.getElementById('rep_counter').innerText = '0';
     this.renderHistory();
 
@@ -916,7 +934,24 @@ class FitFormApp {
 
     if (this.calendarView) this.calendarView.render();
     if (this.analyticsView) this.analyticsView.render();
-    this.startRestTimer(45);
+
+    // Launch Post-Set Recap Modal with VBT fatigue analysis & 4-7-8 recovery breathing
+    if (this.setRecapModal) {
+      this.setRecapModal.open({
+        exerciseId: this.currentExercise.id,
+        exerciseName: this.currentExercise.name,
+        equipment: this.currentExercise.equipment,
+        setNumber: completedSetNumber,
+        count: completedCount,
+        unit,
+        avgFormScore,
+        isNewPr,
+        repsLog: completedRepsLog,
+        restDuration: 45
+      });
+    } else {
+      this.startRestTimer(45);
+    }
   }
 
   startRestTimer(seconds) {
