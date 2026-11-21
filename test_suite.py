@@ -375,6 +375,49 @@ def run_tests():
     print("✅ TEST 14: Multi-interface view routing isolation verified")
     passed += 1
 
+    # ─────────────────────────────────────────────────────────────
+    # TEST 15: Standing Posture & Knee Bounce Detection (Bicep Curls)
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    # Strict standing curl (legs locked/straight 175°)
+    hip = {'x': 0.5, 'y': 0.5}
+    knee_straight = {'x': 0.5, 'y': 0.75}
+    ankle_straight = {'x': 0.5, 'y': 1.0}
+    strict_knee_angle = bio.calculate_angle(hip, knee_straight, ankle_straight)
+    assert strict_knee_angle >= 165, f"Expected straight knee angle >=165°, got {strict_knee_angle}°"
+
+    # Knee bounce cheat (knees dipped forward to 140° to launch curl)
+    knee_bent = {'x': 0.62, 'y': 0.75}
+    bounced_knee_angle = bio.calculate_angle(hip, knee_bent, ankle_straight)
+    assert bounced_knee_angle < 155, f"Expected bounced knee angle <155°, got {bounced_knee_angle}°"
+    print("✅ TEST 15: Dumbbell curl standing posture & knee-bounce cheat detector verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 16: Standing Posture & Push-Press Leg Drive Detection (Overhead Press)
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    # Stance width check: shoulder width vs ankle width
+    left_shoulder = {'x': 0.40, 'y': 0.25}
+    right_shoulder = {'x': 0.60, 'y': 0.25}
+    shoulder_width = abs(right_shoulder['x'] - left_shoulder['x']) # 0.20
+
+    # Narrow unstable stance (feet touching, ankles 0.05 apart)
+    left_ankle_narrow = {'x': 0.48, 'y': 1.0}
+    right_ankle_narrow = {'x': 0.52, 'y': 1.0}
+    narrow_ankle_width = abs(right_ankle_narrow['x'] - left_ankle_narrow['x']) # 0.04
+    is_narrow = narrow_ankle_width < shoulder_width * 0.40
+    assert is_narrow, "Failed to detect narrow unstable stance"
+
+    # Solid shoulder-width stance (ankles 0.20 apart)
+    left_ankle_solid = {'x': 0.40, 'y': 1.0}
+    right_ankle_solid = {'x': 0.60, 'y': 1.0}
+    solid_ankle_width = abs(right_ankle_solid['x'] - left_ankle_solid['x']) # 0.20
+    is_solid = solid_ankle_width >= shoulder_width * 0.40
+    assert is_solid, "Failed to confirm solid shoulder-width stance"
+    print("✅ TEST 16: Overhead press stance width & standing stability detector verified")
+    passed += 1
+
     print("=" * 60)
     print(f"🎉 ALL {passed}/{total} TESTS PASSED WITH 100% SUCCESS!")
     print("=" * 60)

@@ -865,10 +865,40 @@ export const EXERCISES = [
       const torsoAngle = Bio.calcAngleWithVerticalSmoothed('dc_torso', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
       const symmetry   = Bio.checkSymmetry(leftElbow, rightElbow, 18);
 
+      // ── Standing Posture & Leg Drive Telemetry ──────────────────────────────
+      const hasKnees = (landmarks[LM.LEFT_KNEE]?.visibility ?? 0) > 0.35 && (landmarks[LM.RIGHT_KNEE]?.visibility ?? 0) > 0.35;
+      const hasAnkles = (landmarks[LM.LEFT_ANKLE]?.visibility ?? 0) > 0.35 && (landmarks[LM.RIGHT_ANKLE]?.visibility ?? 0) > 0.35;
+
+      let standingStanceStatus = 'Step back to track';
+      const activeLms = [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST];
+
       const errors = [];
       let formScore = 100;
       if (torsoAngle > 18) { errors.push('Torso swinging — stand still, isolate biceps'); formScore -= 35; }
       if (!symmetry.symmetric && avgElbow < 120) { errors.push(`Arms uneven by ${symmetry.diff}° — curl together`); formScore -= 15; }
+
+      if (hasKnees && hasAnkles) {
+        activeLms.push(LM.LEFT_HIP, LM.RIGHT_HIP, LM.LEFT_KNEE, LM.RIGHT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_ANKLE);
+        const leftKnee  = Bio.calculateAngleSmoothed('dc_lk', landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE], landmarks[LM.LEFT_ANKLE]);
+        const rightKnee = Bio.calculateAngleSmoothed('dc_rk', landmarks[LM.RIGHT_HIP], landmarks[LM.RIGHT_KNEE], landmarks[LM.RIGHT_ANKLE]);
+        const avgKnee   = Math.round((leftKnee + rightKnee) / 2);
+
+        // Detect knee bounce / leg drive cheat during concentric curl (legs should remain locked/soft ~160-180°)
+        if (avgKnee < 155 && avgElbow < 140) {
+          errors.push('No knee bounce! Stand strict, isolate biceps');
+          formScore -= 30;
+        }
+
+        // Stance width: feet should be ~shoulder width, not pinned together or super wide
+        const ankleDist = Math.abs(landmarks[LM.LEFT_ANKLE].x - landmarks[LM.RIGHT_ANKLE].x);
+        const shoulderDist = Math.abs(landmarks[LM.LEFT_SHOULDER].x - landmarks[LM.RIGHT_SHOULDER].x);
+        if (shoulderDist > 0.05 && ankleDist < shoulderDist * 0.40) {
+          errors.push('Widen stance to shoulder-width for stability');
+          formScore -= 10;
+        }
+
+        standingStanceStatus = avgKnee >= 155 ? `${avgKnee}° (Strict ✓)` : `⚠ ${avgKnee}° (Bouncing)`;
+      }
 
       const formOk = errors.length === 0;
       let feedback = 'Pin elbows to sides — curl and squeeze';
@@ -946,9 +976,10 @@ export const EXERCISES = [
           'Left Elbow': `${leftElbow}°`, 'Right Elbow': `${rightElbow}°`,
           'Avg Elbow': `${avgElbow}° (Need ≤55° at top)`,
           'Torso Sway': `${torsoAngle}° (Keep <18°)`,
+          'Standing Stance': standingStanceStatus,
           'Symmetry': symmetry.symmetric ? '✓ Even' : `⚠ Off by ${symmetry.diff}°`
         },
-        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST]
+        activeLandmarks: activeLms
       };
     }
   },
@@ -974,9 +1005,30 @@ export const EXERCISES = [
       const avgElbow   = Math.round((leftElbow + rightElbow) / 2);
       const torsoAngle = Bio.calcAngleWithVerticalSmoothed('hc_torso', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
 
+      // ── Standing Posture & Leg Drive Telemetry ──────────────────────────────
+      const hasKnees = (landmarks[LM.LEFT_KNEE]?.visibility ?? 0) > 0.35 && (landmarks[LM.RIGHT_KNEE]?.visibility ?? 0) > 0.35;
+      const hasAnkles = (landmarks[LM.LEFT_ANKLE]?.visibility ?? 0) > 0.35 && (landmarks[LM.RIGHT_ANKLE]?.visibility ?? 0) > 0.35;
+
+      let standingStanceStatus = 'Step back to track';
+      const activeLms = [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST];
+
       const errors = [];
       let formScore = 100;
       if (torsoAngle > 18) { errors.push('Torso swinging — isolate the curl'); formScore -= 30; }
+
+      if (hasKnees && hasAnkles) {
+        activeLms.push(LM.LEFT_HIP, LM.RIGHT_HIP, LM.LEFT_KNEE, LM.RIGHT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_ANKLE);
+        const leftKnee  = Bio.calculateAngleSmoothed('hc_lk', landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE], landmarks[LM.LEFT_ANKLE]);
+        const rightKnee = Bio.calculateAngleSmoothed('hc_rk', landmarks[LM.RIGHT_HIP], landmarks[LM.RIGHT_KNEE], landmarks[LM.RIGHT_ANKLE]);
+        const avgKnee   = Math.round((leftKnee + rightKnee) / 2);
+
+        if (avgKnee < 155 && avgElbow < 140) {
+          errors.push('No knee bounce! Stand strict, isolate biceps');
+          formScore -= 30;
+        }
+
+        standingStanceStatus = avgKnee >= 155 ? `${avgKnee}° (Strict ✓)` : `⚠ ${avgKnee}° (Bouncing)`;
+      }
 
       const formOk = errors.length === 0;
       let feedback = 'Neutral grip curl — elbows stay fixed', stateLabel = 'Bottom', repCompleted = false;
@@ -1013,8 +1065,8 @@ export const EXERCISES = [
         repCompleted, repCount: this.state.repCount,
         stateLabel, feedback, errors,
         formScore: Math.max(formScore, 50),
-        liveAngles: { 'Avg Elbow': `${avgElbow}°`, 'Torso Sway': `${torsoAngle}°` },
-        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST]
+        liveAngles: { 'Avg Elbow': `${avgElbow}°`, 'Torso Sway': `${torsoAngle}°`, 'Standing Stance': standingStanceStatus },
+        activeLandmarks: activeLms
       };
     }
   },
@@ -1041,10 +1093,40 @@ export const EXERCISES = [
       const torsoAngle = Bio.calcAngleWithVerticalSmoothed('ohp_torso', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
       const symmetry = Bio.checkSymmetry(leftArm, rightArm, 20);
 
+      // ── Standing Posture & Push-Press Leg Drive Telemetry ──────────────────
+      const hasKnees = (landmarks[LM.LEFT_KNEE]?.visibility ?? 0) > 0.35 && (landmarks[LM.RIGHT_KNEE]?.visibility ?? 0) > 0.35;
+      const hasAnkles = (landmarks[LM.LEFT_ANKLE]?.visibility ?? 0) > 0.35 && (landmarks[LM.RIGHT_ANKLE]?.visibility ?? 0) > 0.35;
+
+      let standingStanceStatus = 'Step back to track';
+      const activeLms = [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST];
+
       const errors = [];
       let formScore = 100;
-      if (torsoAngle > 20) { errors.push('Lower back arching — tighten core, ribs down'); formScore -= 30; }
+      if (torsoAngle > 18) { errors.push('Lower back arching — tighten core, ribs down'); formScore -= 30; }
       if (!symmetry.symmetric && avgArm > 100 && avgArm < 155) { errors.push(`Arms uneven by ${symmetry.diff}°`); formScore -= 15; }
+
+      if (hasKnees && hasAnkles) {
+        activeLms.push(LM.LEFT_HIP, LM.RIGHT_HIP, LM.LEFT_KNEE, LM.RIGHT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_ANKLE);
+        const leftKnee  = Bio.calculateAngleSmoothed('ohp_lk', landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE], landmarks[LM.LEFT_ANKLE]);
+        const rightKnee = Bio.calculateAngleSmoothed('ohp_rk', landmarks[LM.RIGHT_HIP], landmarks[LM.RIGHT_KNEE], landmarks[LM.RIGHT_ANKLE]);
+        const avgKnee   = Math.round((leftKnee + rightKnee) / 2);
+
+        // Detect push-press cheat: dipping knees to launch dumbbells overhead
+        if (avgKnee < 155 && avgArm < 145) {
+          errors.push('Strict press only — no knee dip / push-press leg drive!');
+          formScore -= 30;
+        }
+
+        // Stance width: pressing base stability
+        const ankleDist = Math.abs(landmarks[LM.LEFT_ANKLE].x - landmarks[LM.RIGHT_ANKLE].x);
+        const shoulderDist = Math.abs(landmarks[LM.LEFT_SHOULDER].x - landmarks[LM.RIGHT_SHOULDER].x);
+        if (shoulderDist > 0.05 && ankleDist < shoulderDist * 0.40) {
+          errors.push('Widen stance to shoulder-width for pressing balance');
+          formScore -= 10;
+        }
+
+        standingStanceStatus = avgKnee >= 155 ? `${avgKnee}° (Strict ✓)` : `⚠ ${avgKnee}° (Leg Drive)`;
+      }
 
       const formOk = errors.length === 0;
       let feedback = 'Press straight up — full lockout overhead', stateLabel = 'Rack Position', repCompleted = false;
@@ -1094,9 +1176,10 @@ export const EXERCISES = [
         liveAngles: {
           'Avg Arm Angle': `${avgArm}° (Lockout: >155°)`,
           'Symmetry': symmetry.symmetric ? '✓ Even' : `⚠ ${symmetry.diff}° off`,
-          'Torso Lean': `${torsoAngle}° (Keep <20°)`
+          'Torso Lean': `${torsoAngle}° (Keep <18°)`,
+          'Knee Stability': standingStanceStatus
         },
-        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST]
+        activeLandmarks: activeLms
       };
     }
   },
@@ -1341,10 +1424,38 @@ export const EXERCISES = [
       const torsoAngle = Bio.calcAngleWithVerticalSmoothed('bc_torso', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
       const symmetry   = Bio.checkSymmetry(leftElbow, rightElbow, 12); // tighter tolerance for barbell
 
+      // ── Standing Posture & Leg Drive Telemetry ──────────────────────────────
+      const hasKnees = (landmarks[LM.LEFT_KNEE]?.visibility ?? 0) > 0.35 && (landmarks[LM.RIGHT_KNEE]?.visibility ?? 0) > 0.35;
+      const hasAnkles = (landmarks[LM.LEFT_ANKLE]?.visibility ?? 0) > 0.35 && (landmarks[LM.RIGHT_ANKLE]?.visibility ?? 0) > 0.35;
+
+      let standingStanceStatus = 'Step back to track';
+      const activeLms = [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST];
+
       const errors = [];
       let formScore = 100;
       if (torsoAngle > 15) { errors.push('No body rocking — strict curl only'); formScore -= 35; }
       if (!symmetry.symmetric) { errors.push(`Bar tilting — ${symmetry.diff}° uneven`); formScore -= 15; }
+
+      if (hasKnees && hasAnkles) {
+        activeLms.push(LM.LEFT_HIP, LM.RIGHT_HIP, LM.LEFT_KNEE, LM.RIGHT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_ANKLE);
+        const leftKnee  = Bio.calculateAngleSmoothed('bc_lk', landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE], landmarks[LM.LEFT_ANKLE]);
+        const rightKnee = Bio.calculateAngleSmoothed('bc_rk', landmarks[LM.RIGHT_HIP], landmarks[LM.RIGHT_KNEE], landmarks[LM.RIGHT_ANKLE]);
+        const avgKnee   = Math.round((leftKnee + rightKnee) / 2);
+
+        if (avgKnee < 155 && avgElbow < 140) {
+          errors.push('No knee bounce! Stand strict, isolate biceps');
+          formScore -= 30;
+        }
+
+        const ankleDist = Math.abs(landmarks[LM.LEFT_ANKLE].x - landmarks[LM.RIGHT_ANKLE].x);
+        const shoulderDist = Math.abs(landmarks[LM.LEFT_SHOULDER].x - landmarks[LM.RIGHT_SHOULDER].x);
+        if (shoulderDist > 0.05 && ankleDist < shoulderDist * 0.40) {
+          errors.push('Widen stance to shoulder-width for balance');
+          formScore -= 10;
+        }
+
+        standingStanceStatus = avgKnee >= 155 ? `${avgKnee}° (Strict ✓)` : `⚠ ${avgKnee}° (Bouncing)`;
+      }
 
       const formOk = errors.length === 0;
       let feedback = 'Strict curl — no momentum', stateLabel = 'Bottom', repCompleted = false;
@@ -1384,9 +1495,10 @@ export const EXERCISES = [
         liveAngles: {
           'Bar Flexion': `${avgElbow}° (Need ≤55° at top)`,
           'Bilateral Balance': symmetry.symmetric ? '✓ Level' : `⚠ Tilted ${symmetry.diff}°`,
-          'Body Swing': `${torsoAngle}° (Strict: <15°)`
+          'Body Swing': `${torsoAngle}° (Strict: <15°)`,
+          'Standing Stance': standingStanceStatus
         },
-        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST]
+        activeLandmarks: activeLms
       };
     }
   },
