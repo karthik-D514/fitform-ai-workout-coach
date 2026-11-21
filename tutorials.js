@@ -85,8 +85,8 @@ export const TUTORIALS = {
   },
 
   plank: {
-    youtubeId: '1OC_yjcMcpk',
-    youtubeTitle: 'How to Do a Plank with Perfect Form',
+    youtubeId: 'ASdvN_XEl_c',
+    youtubeTitle: 'Planks for Beginners — Bowflex',
     keyPoints: [
       'Forearms on floor, elbows directly under shoulders',
       'Body forms one straight line: ankle → hip → shoulder → ear',
@@ -205,8 +205,8 @@ export const TUTORIALS = {
   },
 
   bar_hang: {
-    youtubeId: 'fqx6CBKMtIw',
-    youtubeTitle: 'Dead Hang — Benefits, Form & How Long to Hold',
+    youtubeId: 'fq9gDvNZQ2c',
+    youtubeTitle: 'How To Dead Hang Correctly? — FitnessFAQs',
     keyPoints: [
       'Simply hang with arms fully extended from the bar',
       'Actively depress and retract scapulae (don\'t just passively hang)',
@@ -316,8 +316,8 @@ export const TUTORIALS = {
   },
 
   dumbbell_lateral_raise: {
-    youtubeId: 'FeKT5RQJRR0',
-    youtubeTitle: 'Lateral Raises — The Correct Way for Shoulder Growth',
+    youtubeId: '3VcKaXpzqRo',
+    youtubeTitle: 'How To: Dumbbell Side Lateral Raise — ScottHermanFitness',
     keyPoints: [
       'Slight bend at the elbow (10–15°) — do not use straight arms',
       'Raise to shoulder height ONLY — no higher (impingement risk)',
@@ -461,8 +461,8 @@ export const TUTORIALS = {
   // ─── RESISTANCE TUBES ────────────────────────────────────────────────────
 
   band_pull_apart: {
-    youtubeId: 'IDq7SuSKfJI',
-    youtubeTitle: 'Band Pull-Apart — Fix Your Posture and Build Rear Delts',
+    youtubeId: 'SuvO4TBwSu4',
+    youtubeTitle: 'Band Pull-Apart Exercise Tutorial — Movement Physio',
     keyPoints: [
       'Hold band at chest height with both arms extended forward',
       'Arms must stay STRAIGHT throughout — no elbow bending',
@@ -515,8 +515,8 @@ export const TUTORIALS = {
   // ─── AB ROLLER ────────────────────────────────────────────────────────────
 
   ab_roller_rollout: {
-    youtubeId: 'YAmte7QMoFI',
-    youtubeTitle: 'Ab Wheel Rollout — Beginner Guide (Safe & Effective)',
+    youtubeId: 'MinlHnG7j4k',
+    youtubeTitle: 'How to Use the Ab Roller With Perfect Form — DEMIC',
     keyPoints: [
       '⚠️ BEGINNER: Start with SMALL rolls — only go 20–30 cm forward',
       'Kneel on a mat — protects knees',
@@ -549,8 +549,8 @@ export const TUTORIALS = {
   // ─── WARM-UP & MOBILITY ──────────────────────────────────────────────────
 
   warmup_arm_circles: {
-    youtubeId: '140RTNMJ5Bo',
-    youtubeTitle: 'Dynamic Arm Circles & Shoulder Warm-Up Mobility',
+    youtubeId: 'HMxqtrsNz60',
+    youtubeTitle: 'Beginner Standing Arm Circles & Shoulder Mobility — Hit My Macros',
     keyPoints: [
       'Stand tall, feet shoulder-width apart, core lightly engaged',
       'Extend arms straight out to sides at exact shoulder height',
@@ -577,8 +577,8 @@ export const TUTORIALS = {
   },
 
   warmup_torso_twists: {
-    youtubeId: 'v8Jt_xQkF0E',
-    youtubeTitle: 'Thoracic Spine Mobility & Standing Torso Twists',
+    youtubeId: 'cLuKHx--qJw',
+    youtubeTitle: 'Standing Torso Twists Mobility & Warm-Up — Anastasia Arnold',
     keyPoints: [
       'Stand with wide athletic stance, knees slightly bent (soft)',
       'Keep pelvis and hips square to the front',
