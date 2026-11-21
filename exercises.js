@@ -53,13 +53,13 @@ export const LM = {
 
 export const EXERCISE_CATEGORIES = {
   ALL: 'all',
+  CHEST: 'chest',
+  BACK: 'back',
+  SHOULDERS: 'shoulders',
+  ARMS: 'arms',
+  LEGS: 'legs',
+  CORE: 'core',
   WARMUP: 'warmup',
-  BODYWEIGHT: 'bodyweight',
-  PULLUPS: 'pullups',
-  DUMBBELLS: 'dumbbells',
-  CURL_ROD: 'curl_rod',
-  RESISTANCE_TUBES: 'resistance_tubes',
-  AB_ROLLER: 'ab_roller',
   COOLDOWN: 'cooldown'
 };
 
@@ -92,7 +92,7 @@ export const EXERCISES = [
   {
     id: 'bodyweight_squat',
     name: 'Bodyweight Squat',
-    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    category: EXERCISE_CATEGORIES.LEGS,
     equipment: 'Bodyweight',
     targetMuscles: 'Quadriceps, Glutes, Hamstrings, Core',
     recommendedCamera: 'Front view, 6-8 ft away (whole body visible)',
@@ -263,7 +263,7 @@ export const EXERCISES = [
   {
     id: 'pushup',
     name: 'Push-up',
-    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    category: EXERCISE_CATEGORIES.CHEST,
     equipment: 'Floor / Mat',
     targetMuscles: 'Chest, Triceps, Anterior Deltoids, Core',
     recommendedCamera: 'Front view OR Side profile (Auto-detected)',
@@ -434,7 +434,7 @@ export const EXERCISES = [
   {
     id: 'plank',
     name: 'Core Plank (Hold)',
-    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    category: EXERCISE_CATEGORIES.CORE,
     equipment: 'Floor / Mat',
     targetMuscles: 'Rectus Abdominis, Transverse Abdominis, Obliques, Spinal Erectors',
     recommendedCamera: 'Side profile',
@@ -495,7 +495,7 @@ export const EXERCISES = [
   {
     id: 'lunge',
     name: 'Forward Lunge',
-    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    category: EXERCISE_CATEGORIES.LEGS,
     equipment: 'Bodyweight',
     targetMuscles: 'Quadriceps, Glutes, Hamstrings, Hip Flexors',
     recommendedCamera: 'Side profile (45° or 90°)',
@@ -564,16 +564,19 @@ export const EXERCISES = [
   {
     id: 'pullup',
     name: 'Pull-Up',
-    category: EXERCISE_CATEGORIES.PULLUPS,
+    category: EXERCISE_CATEGORIES.BACK,
     equipment: 'Door Pull-Up Bar / Fixed Bar',
     targetMuscles: 'Latissimus Dorsi, Biceps, Rear Deltoids, Rhomboids, Core',
     recommendedCamera: 'Front view — full body must be visible including bar at top',
-    setupTip: 'Hang with arms fully extended. Camera sees your full body from FRONT. Bar MUST be in top quarter of frame.',
+    setupTip: 'Hang with arms fully extended. Bar must be in top third of frame. Pull body UP to hands.',
     requiredLandmarks: {
-      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Elbow': LM.LEFT_ELBOW, 'Left Wrist': LM.LEFT_WRIST
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Right Shoulder': LM.RIGHT_SHOULDER,
+      'Left Elbow': LM.LEFT_ELBOW, 'Right Elbow': LM.RIGHT_ELBOW,
+      'Left Wrist': LM.LEFT_WRIST, 'Right Wrist': LM.RIGHT_WRIST,
+      'Nose': LM.NOSE
     },
-    state: freshState({ stage: 'HANG' }),
-    reset() { this.state = freshState({ stage: 'HANG' }); },
+    state: freshState({ stage: 'HANG', hangShoulderY: 0 }),
+    reset() { this.state = freshState({ stage: 'HANG', hangShoulderY: 0 }); },
 
     evaluate(landmarks, Bio) {
       const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
@@ -591,23 +594,42 @@ export const EXERCISES = [
       const rightElbow = Bio.calculateAngleSmoothed('pu_plr', landmarks[LM.RIGHT_SHOULDER], landmarks[LM.RIGHT_ELBOW], landmarks[LM.RIGHT_WRIST]);
       const avgElbow   = Math.round((leftElbow + rightElbow) / 2);
 
-      // For pull-ups, chin-over-bar is detected by nose position relative to wrists
-      const noseY   = landmarks[LM.NOSE]?.y ?? 1;
-      const wristLY = landmarks[LM.LEFT_WRIST]?.y ?? 0;
-      const wristRY = landmarks[LM.RIGHT_WRIST]?.y ?? 0;
-      const avgWristY = (wristLY + wristRY) / 2;
-      const chinOverBar = noseY < avgWristY + 0.03; // Nose is at or above wrist height
+      const noseY       = landmarks[LM.NOSE]?.y ?? 1;
+      const wristLY     = landmarks[LM.LEFT_WRIST]?.y ?? 0;
+      const wristRY     = landmarks[LM.RIGHT_WRIST]?.y ?? 0;
+      const avgWristY   = (wristLY + wristRY) / 2;
+      const shoulderLY  = landmarks[LM.LEFT_SHOULDER]?.y ?? 0.5;
+      const shoulderRY  = landmarks[LM.RIGHT_SHOULDER]?.y ?? 0.5;
+      const avgShoulderY = (shoulderLY + shoulderRY) / 2;
+
+      // ── Anti-Spoofing & Physics Verification ──
+      // 1. Wrists must remain anchored high overhead on the bar above shoulders
+      const handsOverhead = avgWristY < avgShoulderY - 0.04 && avgWristY < 0.40;
+
+      // 2. Track body elevation: when hanging, shoulders are at lowest point (largest Y)
+      if (this.state.stage === 'HANG' || this.state.stage === 'IDLE' || !this.state.hangShoulderY) {
+        if (!this.state.hangShoulderY || avgShoulderY > this.state.hangShoulderY) {
+          this.state.hangShoulderY = avgShoulderY;
+        }
+      }
+
+      // Vertical ascent: shoulders must physically pull UP in the camera frame
+      const shoulderRise = this.state.hangShoulderY ? (this.state.hangShoulderY - avgShoulderY) : 0;
+      const bodyPulledUp = shoulderRise >= 0.06;
+
+      // Chin over bar requires nose above wrists AND anchored hands AND genuine body elevation
+      const chinOverBar = (noseY <= avgWristY + 0.02) && handsOverhead && bodyPulledUp;
 
       // Swinging / kipping detection
       const torsoAngle = Bio.calcAngleWithVerticalSmoothed('pul_torso', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
       const kipping = torsoAngle > 30;
-
       const symmetry = Bio.checkSymmetry(leftElbow, rightElbow, 20);
 
       const errors = [];
       let formScore = 100;
       if (kipping) { errors.push('Body swinging (kipping) — control your movement'); formScore -= 30; }
       if (!symmetry.symmetric) { errors.push('Arms uneven — pull equally with both'); formScore -= 15; }
+      if (!handsOverhead && avgElbow < 140) { errors.push('Keep hands fixed on overhead bar — pull body UP'); formScore -= 25; }
 
       const formOk = errors.length === 0;
       let feedback = 'Pull elbows to hips — chin ABOVE bar';
@@ -615,14 +637,8 @@ export const EXERCISES = [
       let repCompleted = false;
       const { stage } = this.state;
 
-      // HANG: avgElbow > 155° (dead hang, fully extended)
-      // PULLING: avgElbow dropping, moving toward bar
-      // TOP: avgElbow < 70° AND chinOverBar
-      // LOWERING: avgElbow rising from TOP
-      // Rep counted when return to HANG (> 150°) after valid TOP
-
       if (stage === 'HANG' || stage === 'IDLE') {
-        if (avgElbow < 155) {
+        if (avgElbow < 155 && handsOverhead) {
           this.state.stage = 'PULLING';
           this.state.maxAngle = avgElbow;
           this.state.bottomFormOk = formOk;
@@ -639,7 +655,6 @@ export const EXERCISES = [
           stateLabel = 'Chin Over Bar ✓';
           feedback = 'Now lower with FULL control';
         } else if (avgElbow > 155) {
-          // Dropped back without reaching chin-over-bar — not a rep
           this.state.stage = 'HANG';
           this.state.minAngle = 180;
           stateLabel = 'Pull higher — chin above bar';
@@ -668,15 +683,15 @@ export const EXERCISES = [
             repCompleted = true;
             feedback = `Rep ${this.state.repCount} done!`;
           } else if (!this.state.bottomFormOk) {
-            feedback = 'Rep not counted — keep body still (no kipping)';
+            feedback = 'Rep skipped — keep form strict!';
           }
           this.state.stage = 'HANG';
-          this.state.minAngle = 180;
           this.state.bottomFormOk = false;
-          stateLabel = 'Dead Hang — Rest or Next Rep';
+          this.state.minAngle = 180;
+          stateLabel = 'Dead Hang';
         } else {
           stateLabel = `Lowering... ${avgElbow}°`;
-          feedback = 'Full extension at the bottom!';
+          feedback = 'Lower until arms are fully straight';
         }
       }
 
@@ -685,12 +700,11 @@ export const EXERCISES = [
       return {
         repCompleted, repCount: this.state.repCount,
         stateLabel, feedback, errors,
-        formScore: Math.max(formScore, 40),
+        formScore: Math.max(formScore, 30),
         liveAngles: {
-          'Left Elbow': `${leftElbow}°`,
-          'Right Elbow': `${rightElbow}°`,
-          'Chin Over Bar': chinOverBar ? '✓ YES' : '✗ Not yet',
-          'Body Swing': kipping ? `⚠ ${torsoAngle}° (kipping)` : `✓ ${torsoAngle}°`
+          'Elbow Angle': `${avgElbow}° (Need <70° at top, >150° hang)`,
+          'Body Elevation': `${Math.round(shoulderRise * 100)}% (Goal: >6%)`,
+          'Chin Position': chinOverBar ? '✓ Cleared Bar' : (noseY <= avgWristY ? 'At Bar Level' : 'Below Bar')
         },
         activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST, LM.NOSE]
       };
@@ -700,19 +714,21 @@ export const EXERCISES = [
   {
     id: 'chin_up',
     name: 'Chin-Up (Underhand Grip)',
-    category: EXERCISE_CATEGORIES.PULLUPS,
+    category: EXERCISE_CATEGORIES.BACK,
     equipment: 'Door Pull-Up Bar / Fixed Bar',
     targetMuscles: 'Biceps, Latissimus Dorsi, Rear Deltoids',
     recommendedCamera: 'Front view — full body visible',
-    setupTip: 'Underhand (supinated) grip, shoulder width. Same as pull-up but biceps more active.',
+    setupTip: 'Underhand (supinated) grip, shoulder width. Pull body UP to hands.',
     requiredLandmarks: {
-      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Elbow': LM.LEFT_ELBOW, 'Left Wrist': LM.LEFT_WRIST
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Right Shoulder': LM.RIGHT_SHOULDER,
+      'Left Elbow': LM.LEFT_ELBOW, 'Right Elbow': LM.RIGHT_ELBOW,
+      'Left Wrist': LM.LEFT_WRIST, 'Right Wrist': LM.RIGHT_WRIST,
+      'Nose': LM.NOSE
     },
-    state: freshState({ stage: 'HANG' }),
-    reset() { this.state = freshState({ stage: 'HANG' }); },
+    state: freshState({ stage: 'HANG', hangShoulderY: 0 }),
+    reset() { this.state = freshState({ stage: 'HANG', hangShoulderY: 0 }); },
 
     evaluate(landmarks, Bio) {
-      // Reuse pull-up logic with same angles (grip type not visible to camera)
       const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
       if (!ok) {
         return {
@@ -727,15 +743,33 @@ export const EXERCISES = [
       const leftElbow  = Bio.calculateAngleSmoothed('cu_pll', landmarks[LM.LEFT_SHOULDER],  landmarks[LM.LEFT_ELBOW],  landmarks[LM.LEFT_WRIST]);
       const rightElbow = Bio.calculateAngleSmoothed('cu_plr', landmarks[LM.RIGHT_SHOULDER], landmarks[LM.RIGHT_ELBOW], landmarks[LM.RIGHT_WRIST]);
       const avgElbow   = Math.round((leftElbow + rightElbow) / 2);
-      const noseY      = landmarks[LM.NOSE]?.y ?? 1;
-      const avgWristY  = ((landmarks[LM.LEFT_WRIST]?.y ?? 0) + (landmarks[LM.RIGHT_WRIST]?.y ?? 0)) / 2;
-      const chinOverBar = noseY < avgWristY + 0.03;
+
+      const noseY       = landmarks[LM.NOSE]?.y ?? 1;
+      const wristLY     = landmarks[LM.LEFT_WRIST]?.y ?? 0;
+      const wristRY     = landmarks[LM.RIGHT_WRIST]?.y ?? 0;
+      const avgWristY   = (wristLY + wristRY) / 2;
+      const shoulderLY  = landmarks[LM.LEFT_SHOULDER]?.y ?? 0.5;
+      const shoulderRY  = landmarks[LM.RIGHT_SHOULDER]?.y ?? 0.5;
+      const avgShoulderY = (shoulderLY + shoulderRY) / 2;
+
+      // Anti-spoofing
+      const handsOverhead = avgWristY < avgShoulderY - 0.04 && avgWristY < 0.40;
+      if (this.state.stage === 'HANG' || this.state.stage === 'IDLE' || !this.state.hangShoulderY) {
+        if (!this.state.hangShoulderY || avgShoulderY > this.state.hangShoulderY) {
+          this.state.hangShoulderY = avgShoulderY;
+        }
+      }
+      const shoulderRise = this.state.hangShoulderY ? (this.state.hangShoulderY - avgShoulderY) : 0;
+      const bodyPulledUp = shoulderRise >= 0.06;
+      const chinOverBar = (noseY <= avgWristY + 0.02) && handsOverhead && bodyPulledUp;
+
       const torsoAngle = Bio.calcAngleWithVerticalSmoothed('cu_torso', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
       const kipping = torsoAngle > 30;
 
       const errors = [];
       let formScore = 100;
       if (kipping) { errors.push('No kipping — strict form only'); formScore -= 30; }
+      if (!handsOverhead && avgElbow < 140) { errors.push('Keep hands fixed on overhead bar — pull body UP'); formScore -= 25; }
 
       const formOk = errors.length === 0;
       let feedback = 'Underhand grip — curl chin to bar';
@@ -744,7 +778,7 @@ export const EXERCISES = [
       const { stage } = this.state;
 
       if (stage === 'HANG' || stage === 'IDLE') {
-        if (avgElbow < 155) { this.state.stage = 'PULLING'; this.state.bottomFormOk = formOk; }
+        if (avgElbow < 155 && handsOverhead) { this.state.stage = 'PULLING'; this.state.bottomFormOk = formOk; }
         stateLabel = 'Dead Hang';
         feedback = 'Curl elbows down and back';
       } else if (stage === 'PULLING') {
@@ -777,10 +811,11 @@ export const EXERCISES = [
         stateLabel, feedback, errors,
         formScore: Math.max(formScore, 40),
         liveAngles: {
-          'Elbow Angle': `${avgElbow}°`,
-          'Chin Over Bar': chinOverBar ? '✓ YES' : '✗ Not yet'
+          'Elbow Angle': `${avgElbow}° (Need <70° at top)`,
+          'Body Elevation': `${Math.round(shoulderRise * 100)}% (Goal: >6%)`,
+          'Chin Clearance': chinOverBar ? '✓ Cleared Bar' : (noseY <= avgWristY ? 'At Bar Level' : 'Below Bar')
         },
-        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST, LM.NOSE]
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST]
       };
     }
   },
@@ -788,12 +823,17 @@ export const EXERCISES = [
   {
     id: 'bar_hang',
     name: 'Dead Hang (Grip & Shoulder)',
-    category: EXERCISE_CATEGORIES.PULLUPS,
+    category: EXERCISE_CATEGORIES.BACK,
     equipment: 'Door Pull-Up Bar',
     targetMuscles: 'Forearms, Grip, Rotator Cuff, Shoulder Decompression',
     recommendedCamera: 'Front view',
-    setupTip: 'Simply hang from the bar with arms fully extended. Build shoulder stability and grip strength.',
-    requiredLandmarks: { 'Left Shoulder': LM.LEFT_SHOULDER, 'Left Elbow': LM.LEFT_ELBOW },
+    setupTip: 'Hang from overhead bar with arms fully extended. Arms must be raised overhead.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Right Shoulder': LM.RIGHT_SHOULDER,
+      'Left Elbow': LM.LEFT_ELBOW, 'Right Elbow': LM.RIGHT_ELBOW,
+      'Left Wrist': LM.LEFT_WRIST, 'Right Wrist': LM.RIGHT_WRIST,
+      'Nose': LM.NOSE
+    },
     state: { holdSeconds: 0, lastTick: 0, repCount: 0 },
     reset() { this.state = { holdSeconds: 0, lastTick: 0, repCount: 0 }; },
 
@@ -801,11 +841,28 @@ export const EXERCISES = [
       const leftElbow  = Bio.calculateAngleSmoothed('hang_l', landmarks[LM.LEFT_SHOULDER],  landmarks[LM.LEFT_ELBOW],  landmarks[LM.LEFT_WRIST]);
       const rightElbow = Bio.calculateAngleSmoothed('hang_r', landmarks[LM.RIGHT_SHOULDER], landmarks[LM.RIGHT_ELBOW], landmarks[LM.RIGHT_WRIST]);
       const avgElbow   = Math.round((leftElbow + rightElbow) / 2);
-      const isHanging  = avgElbow > 150;
+
+      const wristLY = landmarks[LM.LEFT_WRIST]?.y ?? 1;
+      const wristRY = landmarks[LM.RIGHT_WRIST]?.y ?? 1;
+      const avgWristY = (wristLY + wristRY) / 2;
+      const shoulderLY = landmarks[LM.LEFT_SHOULDER]?.y ?? 0.5;
+      const shoulderRY = landmarks[LM.RIGHT_SHOULDER]?.y ?? 0.5;
+      const avgShoulderY = (shoulderLY + shoulderRY) / 2;
+      const noseY = landmarks[LM.NOSE]?.y ?? 0.5;
+
+      // Must be gripping an overhead bar (wrists overhead, above shoulders and nose)
+      const armsOverhead = avgWristY < noseY - 0.05 && avgWristY < avgShoulderY - 0.12 && avgWristY < 0.35;
+      const isHanging  = avgElbow > 150 && armsOverhead;
 
       const errors = [];
       let formScore = 100;
-      if (!isHanging) { errors.push('Straighten arms fully for a dead hang'); formScore -= 20; }
+      if (!armsOverhead) {
+        errors.push('Grip overhead pull-up bar with arms extended above head');
+        formScore -= 30;
+      } else if (avgElbow <= 150) {
+        errors.push('Straighten arms fully for a dead hang');
+        formScore -= 20;
+      }
 
       const now = Date.now();
       if (isHanging) {
@@ -820,14 +877,15 @@ export const EXERCISES = [
 
       return {
         repCompleted: false, repCount: this.state.holdSeconds, unit: 'sec',
-        stateLabel: isHanging ? `Hanging ${this.state.holdSeconds}s ✓` : 'Extend Arms Fully',
-        feedback: isHanging ? 'Breathe and hold — decompress spine' : 'Straighten arms completely',
-        errors, formScore: Math.max(formScore, 60),
+        stateLabel: isHanging ? `Hanging ${this.state.holdSeconds}s ✓` : (armsOverhead ? 'Straighten Arms' : 'Grip Overhead Bar'),
+        feedback: isHanging ? 'Breathe and hold — decompress spine' : (errors[0] || 'Reach up to bar'),
+        errors, formScore: Math.max(formScore, 40),
         liveAngles: {
-          'Arm Extension': `${avgElbow}° (Need > 150° to hang)`,
+          'Arm Extension': `${avgElbow}° (Need >150°)`,
+          'Overhead Grip': armsOverhead ? '✓ Bar Gripped' : '⚠ Arms Not Overhead',
           'Hold Time': `${this.state.holdSeconds}s`
         },
-        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW]
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW, LM.RIGHT_WRIST]
       };
     }
   },
@@ -839,7 +897,7 @@ export const EXERCISES = [
   {
     id: 'dumbbell_curl',
     name: 'Dumbbell Bicep Curl',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.ARMS,
     equipment: 'Two Dumbbells',
     targetMuscles: 'Biceps Brachii, Brachialis, Forearms',
     recommendedCamera: 'Front or slight 45° angle',
@@ -989,7 +1047,7 @@ export const EXERCISES = [
   {
     id: 'hammer_curl',
     name: 'Hammer Curl',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.ARMS,
     equipment: 'Two Dumbbells',
     targetMuscles: 'Brachialis, Brachioradialis, Biceps Brachii',
     recommendedCamera: 'Front or slight 45°',
@@ -1076,7 +1134,7 @@ export const EXERCISES = [
   {
     id: 'dumbbell_shoulder_press',
     name: 'Dumbbell Overhead Press',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.SHOULDERS,
     equipment: 'Two Dumbbells',
     targetMuscles: 'Deltoids, Triceps, Upper Traps, Serratus Anterior',
     recommendedCamera: 'Front or slight 45° angle',
@@ -1189,7 +1247,7 @@ export const EXERCISES = [
   {
     id: 'dumbbell_lateral_raise',
     name: 'Dumbbell Lateral Raise',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.SHOULDERS,
     equipment: 'Two Dumbbells',
     targetMuscles: 'Medial Deltoids, Supraspinatus',
     recommendedCamera: 'Front view',
@@ -1271,7 +1329,7 @@ export const EXERCISES = [
   {
     id: 'dumbbell_bent_over_row',
     name: 'Dumbbell Bent-Over Row',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.BACK,
     equipment: 'Two Dumbbells',
     targetMuscles: 'Lats, Rhomboids, Rear Deltoids, Biceps',
     recommendedCamera: 'Side profile (45°–90° from your side)',
@@ -1337,7 +1395,7 @@ export const EXERCISES = [
   {
     id: 'dumbbell_tricep_extension',
     name: 'Dumbbell Overhead Tricep Extension',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.ARMS,
     equipment: 'One Dumbbell (both hands)',
     targetMuscles: 'Triceps Brachii (Long Head)',
     recommendedCamera: 'Side profile',
@@ -1407,7 +1465,7 @@ export const EXERCISES = [
   {
     id: 'barbell_curl',
     name: 'Curl Rod Bicep Curl',
-    category: EXERCISE_CATEGORIES.CURL_ROD,
+    category: EXERCISE_CATEGORIES.ARMS,
     equipment: 'Curl Rod (EZ-Bar or Straight)',
     targetMuscles: 'Biceps Brachii, Brachialis',
     recommendedCamera: 'Front or slight 45°',
@@ -1508,7 +1566,7 @@ export const EXERCISES = [
   {
     id: 'romanian_deadlift',
     name: 'Romanian Deadlift (RDL)',
-    category: EXERCISE_CATEGORIES.CURL_ROD,
+    category: EXERCISE_CATEGORIES.LEGS,
     equipment: 'Curl Rod / Barbell',
     targetMuscles: 'Hamstrings, Glutes, Spinal Erectors',
     recommendedCamera: 'Side profile (90° from your side)',
@@ -1582,7 +1640,7 @@ export const EXERCISES = [
   {
     id: 'band_pull_apart',
     name: 'Resistance Band Pull-Apart',
-    category: EXERCISE_CATEGORIES.RESISTANCE_TUBES,
+    category: EXERCISE_CATEGORIES.BACK,
     equipment: 'Resistance Tube / Band',
     targetMuscles: 'Rear Deltoids, Rhomboids, Rotator Cuff',
     recommendedCamera: 'Front view',
@@ -1652,7 +1710,7 @@ export const EXERCISES = [
   {
     id: 'resistance_band_row',
     name: 'Resistance Band Seated Row',
-    category: EXERCISE_CATEGORIES.RESISTANCE_TUBES,
+    category: EXERCISE_CATEGORIES.BACK,
     equipment: 'Resistance Tube (anchored)',
     targetMuscles: 'Lats, Rhomboids, Rear Deltoids, Biceps',
     recommendedCamera: 'Side profile',
@@ -1721,45 +1779,95 @@ export const EXERCISES = [
   {
     id: 'ab_roller_rollout',
     name: 'Kneeling Ab Wheel Rollout',
-    category: EXERCISE_CATEGORIES.AB_ROLLER,
+    category: EXERCISE_CATEGORIES.CORE,
     equipment: 'Ab Roller Wheel + Knee Pad',
     targetMuscles: 'Rectus Abdominis, Transverse Abdominis, Lats',
     recommendedCamera: 'Side profile — laptop on floor/low stool pointing sideways',
-    setupTip: '⚠️ BEGINNER: Only roll 30-40cm. Engage core BEFORE rolling. Stop immediately if back arches.',
+    setupTip: 'Start kneeling with wheel directly under chest. Roll wheel forward along floor, keeping core tight.',
     requiredLandmarks: {
-      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Hip': LM.LEFT_HIP, 'Left Knee': LM.LEFT_KNEE
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Hip': LM.LEFT_HIP,
+      'Left Knee': LM.LEFT_KNEE, 'Left Wrist': LM.LEFT_WRIST
     },
-    state: freshState({ stage: 'START' }),
-    reset() { this.state = freshState({ stage: 'START' }); },
+    state: freshState({ stage: 'START', startDx: 0 }),
+    reset() { this.state = freshState({ stage: 'START', startDx: 0 }); },
 
     evaluate(landmarks, Bio) {
-      const hipAngle   = Bio.calculateAngleSmoothed('ar_hip', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE]);
-      const spineAngle = Bio.spineLinearity(landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE]);
+      // Determine side profile visibility (left vs right)
+      const leftScore = (landmarks[LM.LEFT_SHOULDER]?.visibility ?? 0) + (landmarks[LM.LEFT_KNEE]?.visibility ?? 0);
+      const rightScore = (landmarks[LM.RIGHT_SHOULDER]?.visibility ?? 0) + (landmarks[LM.RIGHT_KNEE]?.visibility ?? 0);
+      const isLeft = leftScore >= rightScore;
+
+      const s_idx = isLeft ? LM.LEFT_SHOULDER : LM.RIGHT_SHOULDER;
+      const h_idx = isLeft ? LM.LEFT_HIP : LM.RIGHT_HIP;
+      const k_idx = isLeft ? LM.LEFT_KNEE : LM.RIGHT_KNEE;
+      const w_idx = isLeft ? LM.LEFT_WRIST : LM.RIGHT_WRIST;
+
+      const shoulder = landmarks[s_idx];
+      const hip = landmarks[h_idx];
+      const knee = landmarks[k_idx];
+      const wrist = landmarks[w_idx];
+
+      const hipAngle = Bio.calculateAngleSmoothed('ar_hip', shoulder, hip, knee);
+      const shoulderReachAngle = Bio.calculateAngleSmoothed('ar_reach', hip, shoulder, wrist);
+
+      // Horizontal span of wheel relative to knees
+      const dx = Math.abs(wrist.x - knee.x);
+      // Wrists must be down near floor level holding the roller
+      const wristNearFloor = wrist.y > 0.45 && Math.abs(wrist.y - knee.y) < 0.30;
+      // Torso must descend during rollout (shoulders close to floor)
+      const torsoLow = shoulder.y > knee.y - 0.28;
 
       const errors = [];
       let formScore = 100;
 
-      // ⚠️ CRITICAL: Lower back safety
-      if (hipAngle > 130 && spineAngle < 155) {
-        errors.push('⚠️ LOWER BACK SAGGING — STOP, pull back NOW!');
-        formScore -= 50;
+      // Anti-spoofing: upright kneeling or hands off floor
+      if (!wristNearFloor) {
+        errors.push('Place ab roller on floor in front of knees');
+        formScore -= 40;
+      }
+
+      // Lower back sagging detection: hips dipping below shoulder line during full extension
+      if (hipAngle > 135 && shoulder.y > hip.y + 0.08) {
+        errors.push('⚠️ Lower back sagging — brace core and pull back!');
+        formScore -= 40;
       }
 
       const formOk = errors.length === 0;
-      let feedback = 'Brace core — only roll as far as you can hold form', stateLabel = 'Start Position', repCompleted = false;
+      let feedback = 'Brace core — roll wheel forward along floor';
+      let stateLabel = 'Start Position';
+      let repCompleted = false;
       const { stage } = this.state;
 
-      if ((stage === 'START' || stage === 'IDLE') && hipAngle > 110) {
-        this.state.stage = 'ROLLING'; this.state.bottomFormOk = formOk;
+      if (stage === 'START' || stage === 'IDLE') {
+        if (wristNearFloor) {
+          this.state.startDx = dx;
+        }
+        if (hipAngle > 110 && shoulderReachAngle > 85 && wristNearFloor) {
+          this.state.stage = 'ROLLING';
+          this.state.bottomFormOk = formOk;
+        }
       } else if (stage === 'ROLLING') {
         if (formOk) this.state.bottomFormOk = true;
-        if (hipAngle > 150) { this.state.stage = 'EXTENDED'; stateLabel = 'Extended Position'; feedback = 'Engage lats — pull back now!'; }
-        else { stateLabel = `Rolling... ${hipAngle}°`; feedback = 'Keep abs tight!'; }
+        // Full rollout requires hip extension >145°, shoulder reach >115°, wheel on floor, and horizontal stretch
+        if (hipAngle > 145 && shoulderReachAngle > 115 && wristNearFloor && dx > 0.28) {
+          this.state.stage = 'EXTENDED';
+          stateLabel = 'Extended Position ✓';
+          feedback = 'Engage lats — pull roller back now!';
+        } else {
+          stateLabel = `Rolling... Reach ${shoulderReachAngle}°`;
+          feedback = 'Keep abs tight and roll out';
+        }
       } else if (stage === 'EXTENDED') {
-        if (hipAngle < 130) { this.state.stage = 'RETURNING'; stateLabel = 'Pulling Back'; feedback = 'Use lats and core to pull back'; }
-        else { stateLabel = `Extended ${hipAngle}°`; feedback = 'Now pull back'; }
+        if (hipAngle < 130 || shoulderReachAngle < 105) {
+          this.state.stage = 'RETURNING';
+          stateLabel = 'Pulling Back';
+          feedback = 'Use lats and core to pull wheel back';
+        } else {
+          stateLabel = `Extended ✓ (${shoulderReachAngle}°)`;
+          feedback = 'Pull back through core';
+        }
       } else if (stage === 'RETURNING') {
-        if (hipAngle < 90) {
+        if (hipAngle < 95 && shoulderReachAngle < 85) {
           const now = Date.now();
           if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && this.state.bottomFormOk) {
             this.state.repCount++;
@@ -1769,9 +1877,12 @@ export const EXERCISES = [
           } else if (!this.state.bottomFormOk) {
             feedback = 'Rep skipped — keep lower back safe next time';
           }
-          this.state.stage = 'START'; this.state.bottomFormOk = false;
+          this.state.stage = 'START';
+          this.state.bottomFormOk = false;
           stateLabel = 'Start Position';
-        } else { stateLabel = `Returning... ${hipAngle}°`; }
+        } else {
+          stateLabel = `Returning... ${hipAngle}°`;
+        }
       }
 
       if (errors.length > 0) feedback = errors[0];
@@ -1781,10 +1892,11 @@ export const EXERCISES = [
         stateLabel, feedback, errors,
         formScore: Math.max(formScore, 30),
         liveAngles: {
-          'Extension': `${hipAngle}° (Full: >150°)`,
-          'Spine Safety': `${spineAngle}° (Must stay >155°)`
+          'Hip Extension': `${hipAngle}° (Full: >145°)`,
+          'Arm Reach': `${shoulderReachAngle}° (Goal: >115°)`,
+          'Roller Contact': wristNearFloor ? '✓ Floor Contact' : '⚠ Off Floor'
         },
-        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_HIP, LM.LEFT_KNEE]
+        activeLandmarks: [s_idx, h_idx, k_idx, w_idx]
       };
     }
   },
@@ -2302,7 +2414,7 @@ export const EXERCISES = [
   {
     id: 'dumbbell_floor_press',
     name: 'Dumbbell Floor Press',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.CHEST,
     equipment: 'Dumbbells + Mat',
     targetMuscles: 'Pectoralis Major, Triceps, Anterior Deltoids',
     recommendedCamera: 'Side-angle or 45° view from floor level',
@@ -2401,7 +2513,7 @@ export const EXERCISES = [
   {
     id: 'diamond_pushup',
     name: 'Diamond / Close-Grip Push-up',
-    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    category: EXERCISE_CATEGORIES.CHEST,
     equipment: 'Floor / Mat',
     targetMuscles: 'Triceps Brachii, Inner Chest, Anterior Deltoids',
     recommendedCamera: 'Side profile or 45° angle, full body visible',
@@ -2496,7 +2608,7 @@ export const EXERCISES = [
   {
     id: 'single_arm_dumbbell_row',
     name: 'Single-Arm Dumbbell Row',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.BACK,
     equipment: 'Dumbbells + Sturdy Chair/Knee Support',
     targetMuscles: 'Latissimus Dorsi, Rhomboids, Rear Deltoids, Biceps',
     recommendedCamera: 'Side profile facing the rowing arm',
@@ -2592,7 +2704,7 @@ export const EXERCISES = [
   {
     id: 'pike_pushup',
     name: 'Pike Push-up (Shoulder Builder)',
-    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    category: EXERCISE_CATEGORIES.SHOULDERS,
     equipment: 'Floor / Mat',
     targetMuscles: 'Anterior & Medial Deltoids, Upper Chest, Triceps',
     recommendedCamera: 'Side profile with full body visible',
@@ -2687,7 +2799,7 @@ export const EXERCISES = [
   {
     id: 'band_face_pull',
     name: 'Resistance Band Face Pull',
-    category: EXERCISE_CATEGORIES.RESISTANCE_TUBES,
+    category: EXERCISE_CATEGORIES.SHOULDERS,
     equipment: 'Resistance Band + Door Anchor',
     targetMuscles: 'Rear Deltoids, Rotator Cuffs, Rhomboids',
     recommendedCamera: 'Side or 45° angle, full upper body visible',
@@ -2786,7 +2898,7 @@ export const EXERCISES = [
   {
     id: 'ez_bar_skull_crusher',
     name: 'EZ Bar Skull Crushers (Floor)',
-    category: EXERCISE_CATEGORIES.CURL_ROD,
+    category: EXERCISE_CATEGORIES.ARMS,
     equipment: 'EZ Curl Rod + Mat',
     targetMuscles: 'Triceps Brachii (Long & Medial Heads)',
     recommendedCamera: 'Side-profile from floor level',
@@ -2881,7 +2993,7 @@ export const EXERCISES = [
   {
     id: 'band_tricep_pushdown',
     name: 'Resistance Band Tricep Pushdown',
-    category: EXERCISE_CATEGORIES.RESISTANCE_TUBES,
+    category: EXERCISE_CATEGORIES.ARMS,
     equipment: 'Resistance Band + Door Anchor',
     targetMuscles: 'Triceps (Lateral & Medial Heads)',
     recommendedCamera: 'Side profile, 6-8 ft away',
@@ -2960,7 +3072,7 @@ export const EXERCISES = [
   {
     id: 'dumbbell_goblet_squat',
     name: 'Dumbbell Goblet Squat',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.LEGS,
     equipment: 'Dumbbells',
     targetMuscles: 'Quadriceps, Glutes, Core, Thoracic Extensors',
     recommendedCamera: 'Front view or 45° angle, full body visible',
@@ -3067,7 +3179,7 @@ export const EXERCISES = [
   {
     id: 'bulgarian_split_squat',
     name: 'Bulgarian Split Squat / Reverse Lunge',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.LEGS,
     equipment: 'Dumbbells + Mat',
     targetMuscles: 'Quadriceps, Gluteus Maximus, Adductors',
     recommendedCamera: 'Side profile or 45° angle, full body visible',
@@ -3150,7 +3262,7 @@ export const EXERCISES = [
   {
     id: 'weighted_glute_bridge',
     name: 'Weighted Glute Bridge (Floor)',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.LEGS,
     equipment: 'Dumbbells or EZ Bar + Mat',
     targetMuscles: 'Gluteus Maximus, Hamstrings, Core',
     recommendedCamera: 'Side profile from floor level',
@@ -3226,7 +3338,7 @@ export const EXERCISES = [
   {
     id: 'standing_calf_raise',
     name: 'Standing Dumbbell Calf Raise',
-    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    category: EXERCISE_CATEGORIES.LEGS,
     equipment: 'Dumbbells + Mat / Step',
     targetMuscles: 'Gastrocnemius, Soleus (Calves), Ankle Stabilizers',
     recommendedCamera: 'Front or side view showing feet and legs',
@@ -3294,7 +3406,7 @@ export const EXERCISES = [
   {
     id: 'side_plank',
     name: 'Side Plank (Obliques & Core)',
-    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    category: EXERCISE_CATEGORIES.CORE,
     equipment: 'Floor / Mat',
     targetMuscles: 'Internal/External Obliques, Glute Medius, Core',
     recommendedCamera: 'Front view showing full diagonal body line',
@@ -3347,7 +3459,7 @@ export const EXERCISES = [
   {
     id: 'hollow_body_hold',
     name: 'Hollow Body Hold',
-    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    category: EXERCISE_CATEGORIES.CORE,
     equipment: 'Floor / Mat',
     targetMuscles: 'Rectus Abdominis, Transverse Abdominis, Hip Flexors',
     recommendedCamera: 'Side profile from floor level',

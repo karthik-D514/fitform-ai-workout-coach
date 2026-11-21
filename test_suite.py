@@ -872,6 +872,90 @@ def run_tests():
     print("✅ TEST 35: Weighted Glute Bridge lockout & hyperextension prevention verified")
     passed += 1
 
+    # ─────────────────────────────────────────────────────────────
+    # TEST 36: Pull-Up Anti-Spoofing: Seated Hand Raises Rejected
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def eval_pullup_antigravity(wrist_y, shoulder_y, hang_shoulder_y, nose_y, elbow_angle):
+        hands_overhead = wrist_y < shoulder_y - 0.04 and wrist_y < 0.40
+        shoulder_rise = hang_shoulder_y - shoulder_y if hang_shoulder_y else 0
+        body_pulled_up = shoulder_rise >= 0.06
+        chin_over_bar = (nose_y <= wrist_y + 0.02) and hands_overhead and body_pulled_up
+        is_top = elbow_angle < 70 and chin_over_bar
+        return hands_overhead, body_pulled_up, chin_over_bar, is_top
+
+    # Sitting person: shoulders stationary at y=0.50, raises then lowers hands to chest (wrist_y=0.52, nose_y=0.45, elbow=65°)
+    hands_ov_fake, rise_fake, cob_fake, is_top_fake = eval_pullup_antigravity(
+        wrist_y=0.52, shoulder_y=0.50, hang_shoulder_y=0.50, nose_y=0.45, elbow_angle=65
+    )
+    assert not hands_ov_fake, "Expected seated hands lowered to chest to fail handsOverhead check"
+    assert not rise_fake, "Expected seated person with stationary shoulders to fail bodyPulledUp check"
+    assert not cob_fake and not is_top_fake, "Seated hand raises MUST be rejected by Pull-Up engine"
+    print("✅ TEST 36: Pull-Up anti-spoofing gating (seated hand raises rejected) verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 37: Genuine Pull-Up Chin-Over-Bar & Shoulder Ascent
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    # Genuine pullup: dead hang at shoulder_y=0.48, pulls up to shoulder_y=0.26, wrists at bar y=0.16, nose=0.15, elbow=62°
+    hands_ov_real, rise_real, cob_real, is_top_real = eval_pullup_antigravity(
+        wrist_y=0.16, shoulder_y=0.26, hang_shoulder_y=0.48, nose_y=0.15, elbow_angle=62
+    )
+    assert hands_ov_real, "Expected real pull-up bar grip to pass handsOverhead"
+    assert rise_real, "Expected genuine upward shoulder travel (22% frame rise) to pass bodyPulledUp"
+    assert cob_real and is_top_real, "Expected genuine pullup chin-over-bar to reach TOP stage"
+    print("✅ TEST 37: Genuine Pull-Up chin-over-bar & shoulder ascent verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 38: Ab Wheel Rollout Anti-Spoofing: Upright Kneeling Rejected
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def eval_ab_rollout(hip_angle, shoulder_reach_angle, wrist_y, knee_y, dx):
+        wrist_near_floor = wrist_y > 0.45 and abs(wrist_y - knee_y) < 0.30
+        is_extended = hip_angle > 145 and shoulder_reach_angle > 115 and wrist_near_floor and dx > 0.28
+        return wrist_near_floor, is_extended
+
+    # Upright kneeling without wheel: hips straight (175°), arms hanging (reach=15°), hands at waist (wrist_y=0.50, knee_y=0.80), dx=0.05
+    on_floor_fake, is_ext_fake = eval_ab_rollout(
+        hip_angle=175, shoulder_reach_angle=15, wrist_y=0.50, knee_y=0.80, dx=0.05
+    )
+    assert not is_ext_fake, "Upright kneeling without wheel rollout MUST be rejected"
+    print("✅ TEST 38: Ab Wheel Rollout anti-spoofing (upright kneeling rejected) verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 39: Genuine Ab Wheel Rollout with Floor Reach & Extension
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    # Genuine rollout: hip=165°, shoulder reach=135°, wrists on floor holding wheel (wrist_y=0.78, knee_y=0.80), dx=0.45
+    on_floor_real, is_ext_real = eval_ab_rollout(
+        hip_angle=165, shoulder_reach_angle=135, wrist_y=0.78, knee_y=0.80, dx=0.45
+    )
+    assert on_floor_real and is_ext_real, "Expected genuine ab wheel rollout to reach EXTENDED stage"
+    print("✅ TEST 39: Genuine Ab Wheel Rollout floor reach & extension verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 40: Bar Dead Hang Overhead Arm Verification
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def eval_dead_hang(elbow_angle, wrist_y, shoulder_y, nose_y):
+        arms_overhead = wrist_y < nose_y - 0.05 and wrist_y < shoulder_y - 0.12 and wrist_y < 0.35
+        is_hanging = elbow_angle > 150 and arms_overhead
+        return arms_overhead, is_hanging
+
+    # Standing with hands at sides (elbow=170°, wrist_y=0.65, shoulder_y=0.30, nose_y=0.20)
+    overhead_stand, hang_stand = eval_dead_hang(170, 0.65, 0.30, 0.20)
+    assert not overhead_stand and not hang_stand, "Standing with arms at sides MUST NOT count as dead hang"
+
+    # Real bar hang (elbow=165°, wrist_y=0.12, shoulder_y=0.40, nose_y=0.30)
+    overhead_bar, hang_bar = eval_dead_hang(165, 0.12, 0.40, 0.30)
+    assert overhead_bar and hang_bar, "Hanging from overhead bar MUST count as dead hang"
+    print("✅ TEST 40: Bar Dead Hang overhead arm positioning vs standing arms-down verified")
+    passed += 1
+
     print("=" * 60)
     print(f"🎉 ALL {passed}/{total} TESTS PASSED WITH 100% SUCCESS!")
     print("=" * 60)

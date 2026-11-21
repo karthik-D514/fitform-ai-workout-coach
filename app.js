@@ -80,15 +80,15 @@ class FitFormApp {
   initUI() {
     const filterContainer = document.getElementById('equipment_filters');
     const categories = [
-      { id: EXERCISE_CATEGORIES.ALL,             label: 'All',             icon: '⚡' },
-      { id: EXERCISE_CATEGORIES.WARMUP,          label: 'Warm-Up & Mobility', icon: '🧘' },
-      { id: EXERCISE_CATEGORIES.BODYWEIGHT,       label: 'Bodyweight',      icon: '🤸' },
-      { id: EXERCISE_CATEGORIES.PULLUPS,          label: 'Pull-Ups / Bar',  icon: '🏋️' },
-      { id: EXERCISE_CATEGORIES.DUMBBELLS,        label: 'Dumbbells',       icon: '💪' },
-      { id: EXERCISE_CATEGORIES.CURL_ROD,         label: 'Curl Rod',        icon: '🦾' },
-      { id: EXERCISE_CATEGORIES.RESISTANCE_TUBES, label: 'Bands',           icon: '🎗️' },
-      { id: EXERCISE_CATEGORIES.AB_ROLLER,        label: 'Ab Roller',       icon: '🔄' },
-      { id: EXERCISE_CATEGORIES.COOLDOWN,        label: 'Cool-Down & Stretch', icon: '🧊' }
+      { id: EXERCISE_CATEGORIES.ALL,       label: 'All',                   icon: '⚡' },
+      { id: EXERCISE_CATEGORIES.CHEST,     label: 'Chest',                 icon: '🛡️' },
+      { id: EXERCISE_CATEGORIES.BACK,      label: 'Back & Lats',           icon: '🦅' },
+      { id: EXERCISE_CATEGORIES.SHOULDERS, label: 'Shoulders',             icon: '🏹' },
+      { id: EXERCISE_CATEGORIES.ARMS,      label: 'Arms (Bi & Tri)',       icon: '💪' },
+      { id: EXERCISE_CATEGORIES.LEGS,      label: 'Legs & Glutes',         icon: '🦵' },
+      { id: EXERCISE_CATEGORIES.CORE,      label: 'Abs & Core',            icon: '🧱' },
+      { id: EXERCISE_CATEGORIES.WARMUP,    label: 'Warm-Up & Mobility',    icon: '🧘' },
+      { id: EXERCISE_CATEGORIES.COOLDOWN,  label: 'Cool-Down & Stretch',   icon: '🧊' }
     ];
 
     filterContainer.innerHTML = categories.map((c) => `
