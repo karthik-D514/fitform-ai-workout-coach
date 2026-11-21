@@ -987,4 +987,86 @@ export const TUTORIALS = {
     ],
   },
 
+
+  cooldown_quad_stretch: {
+    youtubeId: 'kia2OzZiwqw',
+    youtubeTitle: 'Standing Quad Stretch - Form & Technique',
+    keyPoints: [
+      'Stand tall on one leg, holding wall or chair for balance if needed',
+      'Bend other knee bringing heel up toward buttocks',
+      'Grasp ankle or foot with hand on same side',
+      'Keep knees touching together, pointing directly towards floor',
+      'Gently tuck pelvis forward to lengthen hip flexors and quads',
+    ],
+    commonMistakes: [
+      '❌ Letting knee flare outward to the side (keep knees aligned)',
+      '❌ Arching lower back excessively (maintain neutral pelvis)',
+      '❌ Yanking ankle violently (hold gentle steady tension)',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side profile or 45° angle',
+      '📏 Distance: 6–8 ft away with full body visible',
+      '📐 Height: Waist level',
+    ],
+    breathingCue: 'Slow deep belly breathing — 4 seconds in, 4 seconds out',
+    skeletonFrames: [
+      { label: 'Standing Stance', kneeAngle: 175 },
+      { label: 'Quad Hold', kneeAngle: 45 },
+    ],
+  },
+
+  cooldown_chest_opener: {
+    youtubeId: 'eo5x2Zw9110',
+    youtubeTitle: 'Chest Opening Stretch & Shoulder Mobility',
+    keyPoints: [
+      'Stand tall with feet hip-width apart and core gently braced',
+      'Interlace fingers behind lower back with palms facing each other',
+      'Roll shoulders down and back, opening clavicles and chest',
+      'Gently straighten arms and lift hands slightly away from hips',
+      'Hold stretch without tilting head back or jutting chin',
+    ],
+    commonMistakes: [
+      '❌ Shrugging shoulders up toward ears',
+      '❌ Hyperextending lumbar spine (keep ribs knit down)',
+      '❌ Holding breath during the chest expansion',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side profile or 45° angle',
+      '📏 Distance: 6–8 ft away',
+      '📐 Height: Chest level',
+    ],
+    breathingCue: 'Deep diaphragmatic breathing expanding chest laterally',
+    skeletonFrames: [
+      { label: 'Start', shoulderAngle: 30 },
+      { label: 'Chest Opener', shoulderAngle: 65 },
+    ],
+  },
+
+  cooldown_decompression: {
+    youtubeId: 'g7Uhp5tphAs',
+    youtubeTitle: 'Standing Forward Fold - Spine & Hamstring Decompression',
+    keyPoints: [
+      'Stand feet hip-distance apart with soft micro-bend in knees',
+      'Hinge deeply at hip joints, letting torso drape forward over thighs',
+      'Allow head, neck, and arms to hang completely loose toward floor',
+      'Shift weight slightly into balls of feet to align hips over ankles',
+      'Focus on gravity lengthening each lumbar vertebra',
+    ],
+    commonMistakes: [
+      '❌ Locking knees straight while rounding lower back',
+      '❌ Straining neck to look forward (let crown of head drop heavy)',
+      '❌ Bouncing into the fold (hold static gentle traction)',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side profile showing hip hinge and spine curve',
+      '📏 Distance: 7–9 ft away',
+      '📐 Height: Knee or waist level',
+    ],
+    breathingCue: 'Exhale deeply into gravity, letting spine decompress with each breath',
+    skeletonFrames: [
+      { label: 'Standing', hipAngle: 175 },
+      { label: 'Forward Fold', hipAngle: 60 },
+    ],
+  },
+
 };
