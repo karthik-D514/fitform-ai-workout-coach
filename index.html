@@ -65,12 +65,28 @@
       <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center font-black text-xl text-slate-950 shadow-lg shadow-emerald-500/20">⚡</div>
       <div>
         <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">FitForm AI</h1>
-        <p class="text-[10px] text-slate-400 font-medium">AI Workout Coach • 100% On-Device • No Internet Needed During Workout</p>
+        <p class="text-[10px] text-slate-400 font-medium hidden sm:block">AI Workout Coach • 100% On-Device • Multi-Interface Suite</p>
       </div>
     </div>
 
+    <!-- Desktop / Laptop View Navigation Switcher -->
+    <nav class="hidden md:flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+      <button class="nav-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-500 text-slate-950 shadow-sm" data-target="view_arena">
+        <span>🏋️</span><span>Live Arena</span>
+      </button>
+      <button class="nav-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white" data-target="view_calendar">
+        <span>📅</span><span>Calendar &amp; Journal</span>
+      </button>
+      <button class="nav-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white" data-target="view_library">
+        <span>🎬</span><span>Technique Lab</span>
+      </button>
+      <button class="nav-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white" data-target="view_analytics">
+        <span>🔥</span><span>PRs &amp; Calories</span>
+      </button>
+    </nav>
+
     <div class="flex items-center gap-2">
-      <div id="engine_status" class="hidden lg:flex text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 font-mono items-center gap-1.5 border border-slate-700 shrink-0">
+      <div id="engine_status" class="hidden xl:flex text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 font-mono items-center gap-1.5 border border-slate-700 shrink-0">
         <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse inline-block"></span> Loading AI...
       </div>
       <button id="voice_toggle_btn" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 transition flex items-center gap-1.5 shrink-0">
@@ -80,8 +96,12 @@
     </div>
   </header>
 
-  <!-- Main Layout -->
-  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 lg:p-5 max-w-[1800px] w-full mx-auto">
+  <!-- Main Multi-Interface Content Area -->
+  <main class="flex-1 p-3 sm:p-5 max-w-[1800px] w-full mx-auto pb-24 md:pb-6">
+
+    <!-- ─── WINDOW 1: LIVE WORKOUT ARENA ──────────────────────────────────────── -->
+    <section id="view_arena" class="tab-view block">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
     <!-- Camera + Controls Column -->
     <div class="lg:col-span-8 flex flex-col gap-3">
@@ -262,7 +282,45 @@
       </div>
 
     </div>
+  </div>
+</section>
+
+    <!-- ─── WINDOW 2: CALENDAR & WORKOUT JOURNAL ──────────────────────────────── -->
+    <section id="view_calendar" class="tab-view hidden">
+      <div id="calendar_view_container"></div>
+    </section>
+
+    <!-- ─── WINDOW 3: TECHNIQUE & VIDEO LAB ──────────────────────────────────── -->
+    <section id="view_library" class="tab-view hidden">
+      <div id="library_view_container"></div>
+    </section>
+
+    <!-- ─── WINDOW 4: PRS & CALORIE ANALYTICS ─────────────────────────────────── -->
+    <section id="view_analytics" class="tab-view hidden">
+      <div id="analytics_view_container"></div>
+    </section>
+
   </main>
+
+  <!-- Mobile Bottom Sticky Navigation (Visible on phones/tablets < md) -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-2 py-1.5 flex items-center justify-around shadow-2xl">
+    <button class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-3 rounded-xl text-[10px] font-bold text-emerald-400 transition" data-target="view_arena">
+      <span class="text-lg">🏋️</span>
+      <span>Arena</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-3 rounded-xl text-[10px] font-bold text-slate-400 transition" data-target="view_calendar">
+      <span class="text-lg">📅</span>
+      <span>Calendar</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-3 rounded-xl text-[10px] font-bold text-slate-400 transition" data-target="view_library">
+      <span class="text-lg">🎬</span>
+      <span>Technique</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center py-1 px-3 rounded-xl text-[10px] font-bold text-slate-400 transition" data-target="view_analytics">
+      <span class="text-lg">🔥</span>
+      <span>Records</span>
+    </button>
+  </nav>
 
   <!-- Rest Timer Modal -->
   <div id="rest_timer_modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden items-center justify-center p-4">
@@ -284,7 +342,7 @@
     if ('caches' in window) {
       caches.keys().then((names) => {
         names.forEach((name) => {
-          if (name !== 'fitform-ai-cache-v5') {
+          if (name !== 'fitform-ai-cache-v6') {
             console.log('Purged stale cache:', name);
             caches.delete(name);
           }
@@ -294,10 +352,10 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=5')
+        navigator.serviceWorker.register('sw.js?v=6')
           .then((reg) => {
             reg.update();
-            console.log('SW v5 registered:', reg.scope);
+            console.log('SW v6 registered:', reg.scope);
           })
           .catch((err) => console.warn('SW registration failed:', err));
       });

@@ -189,6 +189,181 @@ export class StorageManager {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // CALORIE ENGINE (MET & Movement Based)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Estimates calories burned for a given exercise and count/duration
+   */
+  static estimateSessionCalories(exerciseId, count, unit) {
+    // MET-calibrated calorie values per rep or per second (average 70kg adult)
+    const CALORIE_RATES = {
+      // Bodyweight
+      squat:                  0.32, // kcal per rep
+      pushup:                 0.35,
+      pushup_front:           0.35,
+      plank:                  0.08, // kcal per second
+      lunge:                  0.34,
+      // Pull-ups / Bar
+      pullup:                 0.80,
+      chinup:                 0.78,
+      dead_hang:              0.06,
+      // Dumbbells
+      bicep_curl:             0.26,
+      hammer_curl:            0.26,
+      shoulder_press:         0.35,
+      lateral_raise:          0.22,
+      dumbbell_row:           0.36,
+      overhead_tricep:        0.24,
+      // Curl Rod
+      barbell_curl:           0.30,
+      romanian_deadlift:      0.45,
+      // Resistance Bands
+      band_pull_apart:        0.20,
+      band_seated_row:        0.28,
+      // Ab Roller
+      ab_wheel_rollout:       0.45
+    };
+
+    const rate = CALORIE_RATES[exerciseId] || (unit === 'sec' ? 0.07 : 0.30);
+    return Math.round(count * rate * 10) / 10;
+  }
+
+  /**
+   * Computes total calories burned on a given date
+   */
+  static getDayCalories(dateKey = this.getTodayKey()) {
+    const day = this.getDaySummary(dateKey);
+    let total = 0;
+    if (day.sessions && Array.isArray(day.sessions)) {
+      for (const s of day.sessions) {
+        total += this.estimateSessionCalories(s.exerciseId, s.count, s.unit);
+      }
+    }
+    return Math.round(total);
+  }
+
+  /**
+   * Computes lifetime calories burned across all recorded sessions
+   */
+  static getLifetimeCalories() {
+    const ledger = this.getDailyLedger();
+    let total = 0;
+    for (const dateKey of Object.keys(ledger)) {
+      total += this.getDayCalories(dateKey);
+    }
+    return Math.round(total);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PERSONAL RECORDS (PRs) & "BEAT MY SCORE"
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Retrieves all-time personal records across all exercises
+   */
+  static getPersonalRecords() {
+    const ledger = this.getDailyLedger();
+    const prs = {};
+
+    for (const [dateKey, day] of Object.entries(ledger)) {
+      if (!day.sessions) continue;
+      for (const s of day.sessions) {
+        const id = s.exerciseId;
+        if (!prs[id]) {
+          prs[id] = {
+            exerciseId: id,
+            exerciseName: s.exerciseName,
+            equipment: s.equipment,
+            unit: s.unit,
+            bestCount: 0,
+            bestAccuracy: 0,
+            dateAchieved: dateKey,
+            totalSetsLogged: 0
+          };
+        }
+        prs[id].totalSetsLogged += 1;
+        if (s.count > prs[id].bestCount) {
+          prs[id].bestCount = s.count;
+          prs[id].dateAchieved = dateKey;
+        }
+        if (s.formScore > prs[id].bestAccuracy) {
+          prs[id].bestAccuracy = s.formScore;
+        }
+      }
+    }
+    return Object.values(prs);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // STREAK TRACKING
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Calculates consecutive active workout day streak and active days summary
+   */
+  static getActivityStreak() {
+    const ledger = this.getDailyLedger();
+    const activeDates = Object.keys(ledger)
+      .filter((k) => ledger[k].totalSets > 0)
+      .sort();
+
+    if (activeDates.length === 0) {
+      return { currentStreak: 0, longestStreak: 0, totalActiveDays: 0, activeDatesSet: new Set() };
+    }
+
+    const activeSet = new Set(activeDates);
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+
+    // Check today and yesterday for current streak
+    const today = new Date();
+    const fmt = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    let checkDate = new Date(today);
+    // If today has no workout yet, start checking from yesterday
+    if (!activeSet.has(fmt(checkDate))) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    while (activeSet.has(fmt(checkDate))) {
+      currentStreak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    // Longest streak calculation
+    let prevTime = null;
+    for (const dStr of activeDates) {
+      const curTime = new Date(dStr + 'T00:00:00').getTime();
+      if (prevTime !== null) {
+        const diffDays = Math.round((curTime - prevTime) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          tempStreak++;
+        } else {
+          tempStreak = 1;
+        }
+      } else {
+        tempStreak = 1;
+      }
+      longestStreak = Math.max(longestStreak, tempStreak);
+      prevTime = curTime;
+    }
+
+    return {
+      currentStreak,
+      longestStreak: Math.max(longestStreak, currentStreak),
+      totalActiveDays: activeDates.length,
+      activeDatesSet: activeSet
+    };
+  }
+
   /**
    * Export workout logs as JSON download
    */

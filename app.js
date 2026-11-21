@@ -22,6 +22,9 @@ import { VoiceCoach } from './voice_coach.js';
 import { EXERCISES, EXERCISE_CATEGORIES, LM } from './exercises.js';
 import { StorageManager } from './storage.js';
 import { TutorialModal } from './tutorial_modal.js';
+import { CalendarView } from './calendar_view.js';
+import { LibraryView } from './library_view.js';
+import { AnalyticsView } from './analytics_view.js';
 
 class FitFormApp {
   constructor() {
@@ -33,6 +36,11 @@ class FitFormApp {
 
     this.voiceCoach     = new VoiceCoach();
     this.tutorialModal  = new TutorialModal();
+    this.calendarView   = new CalendarView('calendar_view_container');
+    this.libraryView    = new LibraryView('library_view_container', (id) => this.launchFromLibrary(id));
+    this.analyticsView  = new AnalyticsView('analytics_view_container', (id) => this.launchFromLibrary(id));
+
+    this.activeView     = 'view_arena';
     this.currentExercise = EXERCISES[0];
     this.camera         = null;
     this.pose           = null;
@@ -120,7 +128,73 @@ class FitFormApp {
       if (!document.fullscreenElement) document.documentElement.requestFullscreen();
       else document.exitFullscreen();
     });
+
+    // Multi-Interface View Switcher (Desktop Header & Mobile Bottom Nav)
+    document.querySelectorAll('.nav-tab-btn, .mobile-nav-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetView = btn.dataset.target;
+        if (targetView) this.switchView(targetView);
+      });
+    });
+
     this.updateExerciseInfoCard();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MULTI-INTERFACE ROUTER (ARENA, CALENDAR, LIBRARY, ANALYTICS)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  switchView(viewId) {
+    this.activeView = viewId;
+
+    // Toggle view containers
+    document.querySelectorAll('.tab-view').forEach((el) => {
+      if (el.id === viewId) {
+        el.classList.remove('hidden');
+        el.classList.add('block');
+      } else {
+        el.classList.remove('block');
+        el.classList.add('hidden');
+      }
+    });
+
+    // Update Desktop Nav styles
+    document.querySelectorAll('.nav-tab-btn').forEach((btn) => {
+      if (btn.dataset.target === viewId) {
+        btn.className = 'nav-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-500 text-slate-950 shadow-sm';
+      } else {
+        btn.className = 'nav-tab-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white';
+      }
+    });
+
+    // Update Mobile Bottom Nav styles
+    document.querySelectorAll('.mobile-nav-btn').forEach((btn) => {
+      if (btn.dataset.target === viewId) {
+        btn.classList.remove('text-slate-400');
+        btn.classList.add('text-emerald-400');
+      } else {
+        btn.classList.remove('text-emerald-400');
+        btn.classList.add('text-slate-400');
+      }
+    });
+
+    // Lazy render specific view content
+    if (viewId === 'view_calendar') {
+      this.calendarView.render();
+    } else if (viewId === 'view_library') {
+      this.libraryView.render();
+    } else if (viewId === 'view_analytics') {
+      this.analyticsView.render();
+    }
+
+    // Scroll smoothly to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  launchFromLibrary(exerciseId) {
+    this.switchExercise(exerciseId);
+    this.switchView('view_arena');
+    this.voiceCoach.speak(`Loaded ${this.currentExercise.name}. Start camera when ready!`, true);
   }
 
   filterExercises(category) {
@@ -621,6 +695,11 @@ class FitFormApp {
 
     const unit = this.lastUnit || (this.currentExercise.id === 'plank' || this.currentExercise.id === 'bar_hang' ? 'sec' : 'reps');
 
+    // Check if new Personal Record achieved
+    const prevPrs = StorageManager.getPersonalRecords();
+    const existingPr = prevPrs.find((p) => p.exerciseId === this.currentExercise.id);
+    const isNewPr = !existingPr || this.currentRepCount > existingPr.bestCount;
+
     StorageManager.saveSession({
       exerciseId: this.currentExercise.id,
       exerciseName: this.currentExercise.name,
@@ -631,7 +710,12 @@ class FitFormApp {
       avgFormScore
     });
 
-    this.voiceCoach.speak(`Set ${this.activeSet} logged! Great work.`, true);
+    if (isNewPr && this.currentRepCount > 1) {
+      this.voiceCoach.speak(`Incredible! You beat your personal record with ${this.currentRepCount} ${unit}!`, true);
+    } else {
+      this.voiceCoach.speak(`Set ${this.activeSet} logged! Great work.`, true);
+    }
+
     this.activeSet++;
     document.getElementById('set_counter').innerText = `Set ${this.activeSet}`;
     this.currentRepCount = 0;
@@ -640,6 +724,8 @@ class FitFormApp {
     Biomechanics.resetSmoothingHistory();
     document.getElementById('rep_counter').innerText = '0';
     this.renderHistory();
+    if (this.calendarView) this.calendarView.render();
+    if (this.analyticsView) this.analyticsView.render();
     this.startRestTimer(45);
   }
 

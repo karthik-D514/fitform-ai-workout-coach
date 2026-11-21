@@ -1,9 +1,9 @@
 /**
- * FitForm AI - Service Worker (v5)
+ * FitForm AI - Service Worker (v6)
  * Network-First strategy: always serves fresh HTML/JS files when server is running.
  */
 
-const CACHE_NAME = 'fitform-ai-cache-v5';
+const CACHE_NAME = 'fitform-ai-cache-v6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -14,6 +14,9 @@ const ASSETS_TO_CACHE = [
   './tutorial_modal.js',
   './voice_coach.js',
   './storage.js',
+  './calendar_view.js',
+  './library_view.js',
+  './analytics_view.js',
   './manifest.json',
   './icon.svg'
 ];
@@ -22,7 +25,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker v5] Pre-caching offline assets');
+      console.log('[Service Worker v6] Pre-caching offline assets');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
@@ -34,7 +37,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[Service Worker v5] Purging old cache:', key);
+            console.log('[Service Worker v6] Purging old cache:', key);
             return caches.delete(key);
           }
         })
