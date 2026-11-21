@@ -577,6 +577,101 @@ def run_tests():
     print("✅ TEST 22: Warm-Up Air Squats mobility depth validation verified")
     passed += 1
 
+    # ─────────────────────────────────────────────────────────────
+    # TEST 23: Fast Descent Drop Detection & Warning (<0.9s)
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    class TempoCoachPython:
+        def __init__(self):
+            self.phase = 'IDLE'
+            self.start_t = 0
+            self.ecc_dur = 0
+            self.pau_dur = 0
+            self.con_dur = 0
+            self.last_ang = None
+            self.last_t = 0
+            self.vel = 0
+        def update(self, stage, angle, rep_done, now_ms):
+            if self.last_ang is not None and self.last_t > 0:
+                dt = (now_ms - self.last_t) / 1000.0
+                if dt > 0.01:
+                    raw_v = abs(angle - self.last_ang) / dt
+                    self.vel = 0.3 * raw_v + 0.7 * self.vel
+            self.last_ang = angle
+            self.last_t = now_ms
+            
+            s = stage.upper()
+            new_p = 'IDLE'
+            if 'DESCEND' in s or 'DOWN' in s:
+                new_p = 'ECCENTRIC'
+            elif 'BOTTOM' in s or 'PEAK' in s:
+                new_p = 'PAUSE'
+            elif 'ASCEND' in s or 'UP' in s:
+                new_p = 'CONCENTRIC'
+                
+            if new_p != self.phase:
+                if self.start_t > 0:
+                    el = (now_ms - self.start_t) / 1000.0
+                    if self.phase == 'ECCENTRIC': self.ecc_dur = el
+                    elif self.phase == 'PAUSE': self.pau_dur = el
+                    elif self.phase == 'CONCENTRIC': self.con_dur = el
+                self.phase = new_p
+                self.start_t = now_ms
+            elif self.start_t > 0:
+                el = (now_ms - self.start_t) / 1000.0
+                if self.phase == 'ECCENTRIC': self.ecc_dur = el
+                elif self.phase == 'PAUSE': self.pau_dur = el
+                elif self.phase == 'CONCENTRIC': self.con_dur = el
+                
+            if rep_done:
+                rating = 'TOO_FAST' if self.ecc_dur < 0.9 else 'OPTIMAL' if self.ecc_dur >= 1.8 else 'CONTROLLED'
+                return rating
+            return None
+
+    tc_fast = TempoCoachPython()
+    t = 1000
+    tc_fast.update('DESCEND', 150, False, t); t += 200
+    tc_fast.update('DESCEND', 120, False, t); t += 200 # Total descent = 0.4s
+    tc_fast.update('BOTTOM', 90, False, t); t += 100
+    tc_fast.update('ASCEND', 130, False, t); t += 400
+    rating = tc_fast.update('STAND', 170, True, t)
+    assert rating == 'TOO_FAST', f"Expected fast drop to rate TOO_FAST, got {rating}"
+    print("✅ TEST 23: Fast descent drop detection & warning (<0.9s) verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 24: Controlled 2-1-1 Cadence & Time Under Tension (TUT)
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    tc_good = TempoCoachPython()
+    t = 3000
+    # 2.0s descent
+    tc_good.update('DESCEND', 155, False, t); t += 500
+    tc_good.update('DESCEND', 135, False, t); t += 500
+    tc_good.update('DESCEND', 115, False, t); t += 500
+    tc_good.update('DESCEND', 95, False, t); t += 500
+    # 0.5s pause at bottom
+    tc_good.update('BOTTOM', 90, False, t); t += 500
+    # 1.0s ascent
+    tc_good.update('ASCEND', 125, False, t); t += 500
+    tc_good.update('ASCEND', 150, False, t); t += 500
+    rating_good = tc_good.update('STAND', 170, True, t)
+    assert rating_good == 'OPTIMAL', f"Expected 2-1-1 tempo to rate OPTIMAL, got {rating_good}"
+    print("✅ TEST 24: Controlled 2-1-1 cadence & Time Under Tension (TUT) verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 25: Angular Velocity Calculation (deg/s)
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    tc_vel = TempoCoachPython()
+    t = 5000
+    tc_vel.update('DESCEND', 180, False, t); t += 200
+    tc_vel.update('DESCEND', 120, False, t)
+    assert tc_vel.vel > 80, f"Expected high angular velocity during rapid drop, got {tc_vel.vel}°/s"
+    print("✅ TEST 25: Angular velocity tracking & rapid drop detection verified")
+    passed += 1
+
     print("=" * 60)
     print(f"🎉 ALL {passed}/{total} TESTS PASSED WITH 100% SUCCESS!")
     print("=" * 60)

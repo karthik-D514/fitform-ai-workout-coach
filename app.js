@@ -27,6 +27,7 @@ import { LibraryView } from './library_view.js';
 import { AnalyticsView } from './analytics_view.js';
 import { AdaptiveEngine } from './adaptive_engine.js';
 import { RoutineManager } from './warmup_cooldown.js';
+import { TempoCoach } from './tempo_coach.js';
 
 class FitFormApp {
   constructor() {
@@ -39,6 +40,7 @@ class FitFormApp {
     this.voiceCoach     = new VoiceCoach();
     this.tutorialModal  = new TutorialModal();
     this.adaptiveEngine = new AdaptiveEngine();
+    this.tempoCoach     = new TempoCoach(this.voiceCoach);
     this.routineManager = new RoutineManager(this.voiceCoach, this);
     this.calendarView   = new CalendarView('calendar_view_container');
     this.libraryView    = new LibraryView('library_view_container', (id) => this.launchFromLibrary(id));
@@ -226,6 +228,7 @@ class FitFormApp {
     this.currentExercise = found;
     this.currentExercise.reset();
     Biomechanics.resetSmoothingHistory(); // Clear EMA history
+    this.tempoCoach?.reset();
     this.currentRepCount = 0;
     this.activeSet = 1;
     this.formScores = [];
@@ -516,9 +519,33 @@ class FitFormApp {
     this.drawFramingGuide(ctx, W, H, isFramed);
 
     const evalResult = this.currentExercise.evaluate(landmarks, Biomechanics);
+
+    // Primary joint angle extraction for cadence velocity tracking
+    let primaryAngle = 180;
+    if (evalResult.liveAngles) {
+      for (const val of Object.values(evalResult.liveAngles)) {
+        const num = parseInt(val, 10);
+        if (!isNaN(num) && num > 0) {
+          primaryAngle = num;
+          break;
+        }
+      }
+    }
+
+    const tempoState = this.tempoCoach.update(
+      evalResult.stateLabel || this.currentExercise.state?.stage || '',
+      primaryAngle,
+      evalResult.repCompleted
+    );
+
+    if (tempoState.lastRepTempo.total > 0 && evalResult.liveAngles) {
+      evalResult.liveAngles['Cadence / Tempo'] = tempoState.lastRepTempo.tempoString;
+      evalResult.liveAngles['Descent Control'] = tempoState.isDroppingFast ? '⚠ Dropping Fast' : '✓ Controlled';
+    }
+
     this.drawSkeleton(ctx, landmarks, evalResult, W, H);
     this.drawAngleLabels(ctx, landmarks, evalResult, W, H);
-    this.updateHUD(evalResult);
+    this.updateHUD(evalResult, tempoState);
 
     this.currentRepCount = evalResult.repCount;
     this.lastUnit = evalResult.unit || 'reps';
@@ -527,6 +554,9 @@ class FitFormApp {
     if (evalResult.repCompleted) {
       this.voiceCoach.playRepChime();
       this.voiceCoach.speak(`Rep ${this.currentRepCount}!`, true);
+      if (tempoState.tempoFeedback && tempoState.lastRepTempo.rating === 'TOO_FAST') {
+        setTimeout(() => this.voiceCoach.speak(tempoState.tempoFeedback, false), 1100);
+      }
       this.triggerRepPulse();
     } else if (evalResult.errors.length > 0) {
       // Throttle form alerts to once per 3 seconds
@@ -713,7 +743,7 @@ class FitFormApp {
   // HUD UPDATE
   // ─────────────────────────────────────────────────────────────────────────
 
-  updateHUD(evalResult) {
+  updateHUD(evalResult, tempoState = null) {
     // Rep counter
     const unit = evalResult.unit || 'reps';
     document.getElementById('rep_counter').innerText = evalResult.repCount;
@@ -765,6 +795,52 @@ class FitFormApp {
           <span class="mt-0.5">✗</span><span>${err}</span>
         </li>
       `).join('');
+    }
+
+    if (tempoState) {
+      this.updateTempoHUD(tempoState);
+    }
+  }
+
+  updateTempoHUD(tempoState) {
+    const dot = document.getElementById('tempo_indicator_dot');
+    const label = document.getElementById('tempo_phase_label');
+    const timer = document.getElementById('tempo_timer_display');
+    const vel = document.getElementById('tempo_velocity_display');
+    const breakdown = document.getElementById('tempo_last_breakdown');
+
+    if (!dot || !label || !timer) return;
+
+    if (tempoState.phase === 'ECCENTRIC') {
+      dot.className = tempoState.isDroppingFast
+        ? 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping'
+        : 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+      label.innerText = tempoState.isDroppingFast ? 'SLOW DOWN!' : 'DESCENT ↓';
+      label.className = tempoState.isDroppingFast
+        ? 'text-[9px] font-mono font-bold uppercase tracking-wider text-rose-400'
+        : 'text-[9px] font-mono font-bold uppercase tracking-wider text-amber-300';
+      timer.style.color = tempoState.isDroppingFast ? '#f87171' : '#fbbf24';
+    } else if (tempoState.phase === 'PAUSE') {
+      dot.className = 'w-2.5 h-2.5 rounded-full bg-indigo-400';
+      label.innerText = 'PAUSE ⏸';
+      label.className = 'text-[9px] font-mono font-bold uppercase tracking-wider text-indigo-300';
+      timer.style.color = '#818cf8';
+    } else if (tempoState.phase === 'CONCENTRIC') {
+      dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+      label.innerText = 'LIFTING ↑';
+      label.className = 'text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-300';
+      timer.style.color = '#34d399';
+    } else {
+      dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-600';
+      label.innerText = 'READY';
+      label.className = 'text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400';
+      timer.style.color = '#94a3b8';
+    }
+
+    timer.innerText = tempoState.phaseElapsed;
+    if (vel) vel.innerText = tempoState.angularVelocity;
+    if (breakdown && tempoState.lastRepTempo.total > 0) {
+      breakdown.innerText = `Tempo: ${tempoState.lastRepTempo.tempoString}`;
     }
   }
 

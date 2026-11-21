@@ -149,6 +149,21 @@
           </span>
         </div>
 
+        <!-- Bottom-Right Live Cadence & Tempo HUD Meter -->
+        <div id="tempo_hud" class="absolute bottom-2.5 right-2.5 z-10 bg-slate-950/90 border border-slate-700/80 rounded-xl px-2.5 py-1.5 shadow-xl backdrop-blur-md flex items-center gap-2 pointer-events-none">
+          <div id="tempo_indicator_dot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span id="tempo_phase_label" class="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-300">CADENCE</span>
+              <span id="tempo_timer_display" class="text-xs font-black font-mono text-emerald-400">0.0s</span>
+              <span id="tempo_velocity_display" class="text-[9px] font-mono text-slate-400">0°/s</span>
+            </div>
+            <div id="tempo_last_breakdown" class="text-[9px] font-mono text-slate-400 leading-tight">
+              Tempo: 2s ↓ • 1s ⏸ • 1s ↑
+            </div>
+          </div>
+        </div>
+
 
 
         <!-- Live Arena Routine Banner (Visible when Guided Warm-Up or Cool-Down is running) -->
