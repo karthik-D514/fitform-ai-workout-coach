@@ -297,11 +297,53 @@ class FitFormApp {
     if (!this.isRunning) {
       try {
         this.startBtn.innerHTML = '<span class="inline-block animate-spin">⌛</span> Starting...';
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: this.currentFacingMode },
-          audio: false
-        });
 
+        // 1. Strict Security Context Check for Mobile
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            alert(
+              "📱 MOBILE CAMERA REQUIREMENT:\n\n" +
+              "Modern mobile browsers (iOS Safari & Android Chrome) block camera access over plain HTTP.\n\n" +
+              "To use your phone's camera:\n" +
+              "1. Open your live GitHub Pages link (which has automatic free HTTPS):\n" +
+              "https://karthik-d514.github.io/fitform-ai-workout-coach/\n\n" +
+              "Or open via HTTPS."
+            );
+            this.startBtn.innerHTML = '▶ Start Camera & Workout';
+            return;
+          }
+          throw new Error("Your browser or device does not support mediaDevices.getUserMedia.");
+        }
+
+        // 2. 3-Tier Progressive Camera Fallback (prevents OverconstrainedError on smartphones)
+        let stream = null;
+        const constraintsList = [
+          { video: { facingMode: this.currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: this.currentFacingMode }, audio: false },
+          { video: true, audio: false }
+        ];
+
+        let lastErr = null;
+        for (const constraints of constraintsList) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (stream) break;
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+
+        if (!stream) {
+          throw lastErr || new Error("Could not acquire video stream from camera.");
+        }
+
+        // 3. Configure video element with explicit iOS Safari compatibility
+        this.videoElement.setAttribute('autoplay', '');
+        this.videoElement.setAttribute('muted', '');
+        this.videoElement.setAttribute('playsinline', '');
+        this.videoElement.setAttribute('webkit-playsinline', '');
+        this.videoElement.muted = true;
+        this.videoElement.playsInline = true;
         this.videoElement.srcObject = stream;
         await this.videoElement.play();
 
@@ -343,7 +385,7 @@ class FitFormApp {
 
       } catch (err) {
         console.error('Camera error:', err);
-        this.startBtn.innerHTML = '▶ Start Camera';
+        this.startBtn.innerHTML = '▶ Start Camera & Workout';
         this.startBtn.classList.add('bg-emerald-500', 'text-slate-950');
         alert('Could not access camera.\n\n' + err.message + '\n\nPlease allow camera permissions and retry.');
       }
