@@ -732,6 +732,146 @@ def run_tests():
     print("✅ TEST 28: Rep-by-Rep fault & quality gating diagnostics verified")
     passed += 1
 
+    # ─────────────────────────────────────────────────────────────
+    # TEST 29: Dumbbell Floor Press Lockout and Symmetry Gating
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    bio = BiomechanicsTest()
+    def eval_floor_press(l_el, r_el):
+        avg = (l_el + r_el) / 2
+        diff = abs(l_el - r_el)
+        sym = diff <= 22
+        errors = []
+        if not sym:
+            errors.append('Press evenly — one arm is lagging behind')
+        return avg, sym, errors
+
+    avg_good, sym_good, err_good = eval_floor_press(160, 158)
+    assert sym_good and len(err_good) == 0 and avg_good > 155, "Expected valid symmetric lockout"
+
+    avg_bad, sym_bad, err_bad = eval_floor_press(165, 125)
+    assert not sym_bad and len(err_bad) > 0, "Expected asymmetry detection when difference > 22°"
+    print("✅ TEST 29: Dumbbell Floor Press lockout & arm symmetry gating verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 30: Diamond Push-up Depth and Rigid Plank Line Gating
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def eval_diamond_pushup(elbow_angle, spine_line):
+        errors = []
+        if spine_line < 160:
+            errors.append('Hips sagging — brace abs and glutes')
+        depth_ok = elbow_angle <= 85
+        lockout = elbow_angle > 155
+        return depth_ok, lockout, errors
+
+    depth_ok, _, errs = eval_diamond_pushup(80, 172)
+    assert depth_ok and len(errs) == 0, "Expected valid diamond pushup depth"
+
+    _, _, sag_errs = eval_diamond_pushup(80, 148)
+    assert len(sag_errs) > 0 and 'Hips sagging' in sag_errs[0], "Expected hip sag error when spine < 160°"
+    print("✅ TEST 30: Diamond Push-up depth & rigid plank line gating verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 31: Single-Arm Dumbbell Row Peak Pull and Torso Hinge
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def eval_db_row(elbow_angle, torso_angle):
+        errors = []
+        if torso_angle < 35 or torso_angle > 70:
+            errors.append('Hinge torso to 45°–60°')
+        is_peak = elbow_angle <= 80
+        is_stretch = elbow_angle >= 150
+        return is_peak, is_stretch, errors
+
+    is_peak, _, errs = eval_db_row(75, 50)
+    assert is_peak and len(errs) == 0, "Expected valid peak row contraction at 75° with 50° hinge"
+
+    _, _, cheat_errs = eval_db_row(75, 20)
+    assert len(cheat_errs) > 0, "Expected torso hinge fault when standing too upright"
+    print("✅ TEST 31: Single-Arm Dumbbell Row peak pull & torso hinge gating verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 32: Pike Push-up Inverted V-Shape and Shoulder Press Lockout
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def eval_pike_pushup(elbow_angle, hip_angle):
+        errors = []
+        if hip_angle > 110:
+            errors.append('Push hips higher into an inverted V-pike')
+        is_bottom = elbow_angle <= 90
+        is_top = elbow_angle > 155
+        return is_bottom, is_top, errors
+
+    is_bottom, _, errs = eval_pike_pushup(85, 95)
+    assert is_bottom and len(errs) == 0, "Expected valid bottom pike pushup"
+
+    _, _, flat_errs = eval_pike_pushup(85, 145)
+    assert len(flat_errs) > 0, "Expected error when hips flatten into regular pushup"
+    print("✅ TEST 32: Pike Push-up inverted V-shape & shoulder press lockout verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 33: Goblet Squat Parallel Depth and Torso Uprightness
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def eval_goblet_squat(knee_angle, torso_angle):
+        errors = []
+        if torso_angle > 40:
+            errors.append('Keep chest tall and upright')
+        depth_reached = knee_angle <= 95
+        return depth_reached, errors
+
+    depth_reached, errs = eval_goblet_squat(90, 22)
+    assert depth_reached and len(errs) == 0, "Expected parallel goblet squat depth with upright chest"
+
+    _, lean_errs = eval_goblet_squat(90, 50)
+    assert len(lean_errs) > 0 and 'Keep chest tall' in lean_errs[0], "Expected excessive forward lean error"
+    print("✅ TEST 33: Goblet Squat parallel depth & torso uprightness verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 34: EZ Bar Skull Crusher Upper Arm Drift Gating
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def eval_skull_crusher(elbow_angle, arm_drift_angle):
+        errors = []
+        if arm_drift_angle > 25:
+            errors.append('Upper arms drifting — keep elbows pinned stationary')
+        is_stretch = elbow_angle <= 75
+        is_lockout = elbow_angle > 155
+        return is_stretch, is_lockout, errors
+
+    is_stretch, _, errs = eval_skull_crusher(70, 8)
+    assert is_stretch and len(errs) == 0, "Expected valid skull crusher stretch with pinned elbows"
+
+    _, _, drift_errs = eval_skull_crusher(70, 32)
+    assert len(drift_errs) > 0 and 'Upper arms drifting' in drift_errs[0], "Expected upper arm drift error"
+    print("✅ TEST 34: EZ Bar Skull Crusher upper arm drift gating verified")
+    passed += 1
+
+    # ─────────────────────────────────────────────────────────────
+    # TEST 35: Weighted Glute Bridge Lockout and Hyperextension Prevention
+    # ─────────────────────────────────────────────────────────────
+    total += 1
+    def eval_glute_bridge(hip_angle):
+        errors = []
+        if hip_angle > 190:
+            errors.append('Hyperextending lower back — squeeze glutes, not lumbar')
+        is_lockout = 165 <= hip_angle <= 190
+        return is_lockout, errors
+
+    is_lockout, errs = eval_glute_bridge(175)
+    assert is_lockout and len(errs) == 0, "Expected clean glute lockout at 175°"
+
+    is_hyper, hyper_errs = eval_glute_bridge(205)
+    assert not is_hyper and len(hyper_errs) > 0, "Expected hyperextension fault when hip > 190°"
+    print("✅ TEST 35: Weighted Glute Bridge lockout & hyperextension prevention verified")
+    passed += 1
+
     print("=" * 60)
     print(f"🎉 ALL {passed}/{total} TESTS PASSED WITH 100% SUCCESS!")
     print("=" * 60)

@@ -2293,4 +2293,1101 @@ export const EXERCISES = [
       };
     }
   }
+,
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  9. HIGH-IMPACT MUSCLE BUILDERS (HOME GYM CURATED)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    id: 'dumbbell_floor_press',
+    name: 'Dumbbell Floor Press',
+    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    equipment: 'Dumbbells + Mat',
+    targetMuscles: 'Pectoralis Major, Triceps, Anterior Deltoids',
+    recommendedCamera: 'Side-angle or 45° view from floor level',
+    setupTip: 'Lie on floor, knees bent. Press dumbbells up until arms lock out, lower until triceps touch floor.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Right Shoulder': LM.RIGHT_SHOULDER,
+      'Left Elbow': LM.LEFT_ELBOW, 'Right Elbow': LM.RIGHT_ELBOW,
+      'Left Wrist': LM.LEFT_WRIST, 'Right Wrist': LM.RIGHT_WRIST
+    },
+    state: freshState({ stage: 'LOCKOUT' }),
+    reset() { this.state = freshState({ stage: 'LOCKOUT' }); },
+
+    evaluate(landmarks, Bio) {
+      const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
+      if (!ok) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: `Cannot see: ${missingJoints.join(', ')}`,
+          errors: [`Cannot see: ${missingJoints.join(', ')}`],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_ELBOW, LM.RIGHT_ELBOW]
+        };
+      }
+
+      const lElbow = Bio.calculateAngleSmoothed('fp_le', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_ELBOW], landmarks[LM.LEFT_WRIST]);
+      const rElbow = Bio.calculateAngleSmoothed('fp_re', landmarks[LM.RIGHT_SHOULDER], landmarks[LM.RIGHT_ELBOW], landmarks[LM.RIGHT_WRIST]);
+      const avgElbow = Math.round((lElbow + rElbow) / 2);
+      const { symmetric } = Bio.checkSymmetry(lElbow, rElbow, 22);
+
+      const errors = [];
+      let formScore = 100;
+      if (!symmetric) {
+        errors.push('Press evenly — one arm is lagging behind');
+        formScore -= 20;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Drive dumbbells straight up over chest';
+      let stateLabel = 'Lockout';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'LOCKOUT' || stage === 'IDLE') {
+        if (avgElbow < 145) {
+          this.state.stage = 'LOWERING';
+          this.state.bottomFormOk = formOk;
+        }
+        stateLabel = 'Top Lockout — Lower Weights';
+      } else if (stage === 'LOWERING') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (avgElbow <= 95) {
+          this.state.stage = 'FLOOR';
+          stateLabel = 'Floor Touch (Pause)';
+          feedback = 'Press up explosive through chest';
+        } else {
+          stateLabel = `Lowering... ${avgElbow}°`;
+        }
+      } else if (stage === 'FLOOR') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (avgElbow > 115) {
+          this.state.stage = 'PRESSING';
+          stateLabel = 'Pressing Up';
+        }
+      } else if (stage === 'PRESSING') {
+        if (avgElbow > 155) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && this.state.bottomFormOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Strong chest press!`;
+          }
+          this.state.stage = 'LOCKOUT';
+          this.state.bottomFormOk = false;
+          stateLabel = 'Top Lockout';
+        } else {
+          stateLabel = `Pressing... ${avgElbow}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Elbow Angle': `${avgElbow}° (Floor: ≤95°, Lock: >155°)`,
+          'Arm Symmetry': symmetric ? '✓ Balanced' : '⚠ Uneven Press'
+        },
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_ELBOW, LM.RIGHT_ELBOW, LM.LEFT_WRIST, LM.RIGHT_WRIST]
+      };
+    }
+  },
+
+  {
+    id: 'diamond_pushup',
+    name: 'Diamond / Close-Grip Push-up',
+    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    equipment: 'Floor / Mat',
+    targetMuscles: 'Triceps Brachii, Inner Chest, Anterior Deltoids',
+    recommendedCamera: 'Side profile or 45° angle, full body visible',
+    setupTip: 'Hands under sternum with thumbs and index fingers touching in diamond. Lower chest to hands.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Elbow': LM.LEFT_ELBOW,
+      'Left Hip': LM.LEFT_HIP, 'Left Ankle': LM.LEFT_ANKLE
+    },
+    state: freshState({ stage: 'TOP' }),
+    reset() { this.state = freshState({ stage: 'TOP' }); },
+
+    evaluate(landmarks, Bio) {
+      const sideData = Bio.getSideProfileArmAndSpine(landmarks, LM);
+      if (!sideData.hasCore) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: 'Move back — camera must see shoulder, hip, and ankles',
+          errors: ['Cannot see core body line'],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW]
+        };
+      }
+
+      const elbowAngle = Bio.calculateAngleSmoothed('dp_el', sideData.shoulder, sideData.elbow, sideData.wrist);
+      const spineAngle = Bio.spineLinearity(sideData.shoulder, sideData.hip, sideData.ankle);
+
+      const errors = [];
+      let formScore = 100;
+      if (spineAngle < 155) {
+        errors.push('Hips sagging — lock glutes and core in rigid plank');
+        formScore -= 25;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Keep elbows tracking backward along ribs';
+      let stateLabel = 'Plank Lockout';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'TOP' || stage === 'IDLE') {
+        if (elbowAngle < 145) {
+          this.state.stage = 'DOWN';
+          this.state.bottomFormOk = formOk;
+        }
+        stateLabel = 'Plank — Lower Chest';
+      } else if (stage === 'DOWN') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (elbowAngle <= 85) {
+          this.state.stage = 'BOTTOM';
+          stateLabel = 'Deep Tricep Flexion!';
+        } else {
+          stateLabel = `Lowering... ${elbowAngle}°`;
+        }
+      } else if (stage === 'BOTTOM') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (elbowAngle > 110) {
+          this.state.stage = 'UP';
+          stateLabel = 'Driving Up';
+        }
+      } else if (stage === 'UP') {
+        if (elbowAngle > 155) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && this.state.bottomFormOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Triceps locked out!`;
+          }
+          this.state.stage = 'TOP';
+          this.state.bottomFormOk = false;
+          stateLabel = 'Top Lockout';
+        } else {
+          stateLabel = `Ascending... ${elbowAngle}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Elbow Flexion': `${elbowAngle}° (Need ≤85° for depth)`,
+          'Plank Line': `${spineAngle}° (Goal >160°)`
+        },
+        activeLandmarks: [sideData.shoulderIdx, sideData.elbowIdx, sideData.wristIdx, sideData.hipIdx]
+      };
+    }
+  },
+
+  {
+    id: 'single_arm_dumbbell_row',
+    name: 'Single-Arm Dumbbell Row',
+    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    equipment: 'Dumbbells + Sturdy Chair/Knee Support',
+    targetMuscles: 'Latissimus Dorsi, Rhomboids, Rear Deltoids, Biceps',
+    recommendedCamera: 'Side profile facing the rowing arm',
+    setupTip: 'Hinge at hips, back flat. Pull dumbbell toward hip pocket, keeping elbow tight to ribs.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Right Shoulder': LM.RIGHT_SHOULDER,
+      'Left Elbow': LM.LEFT_ELBOW, 'Right Elbow': LM.RIGHT_ELBOW,
+      'Left Hip': LM.LEFT_HIP, 'Right Hip': LM.RIGHT_HIP
+    },
+    state: freshState({ stage: 'STRETCH' }),
+    reset() { this.state = freshState({ stage: 'STRETCH' }); },
+
+    evaluate(landmarks, Bio) {
+      const sideData = Bio.getSideProfileArmAndSpine(landmarks, LM);
+      if (!sideData.hasCore) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: 'Stand in side profile with rowing arm facing camera',
+          errors: ['Cannot see rowing arm'],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW]
+        };
+      }
+
+      const elbowAngle = Bio.calculateAngleSmoothed('row_el', sideData.shoulder, sideData.elbow, sideData.wrist);
+      const spineAngle = Bio.calcAngleWithVerticalSmoothed('row_sp', sideData.shoulder, sideData.hip);
+
+      const errors = [];
+      let formScore = 100;
+      if (spineAngle < 35 || spineAngle > 75) {
+        errors.push('Hinge at hips — keep torso ~45° to floor');
+        formScore -= 20;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Pull elbow back to hip pocket';
+      let stateLabel = 'Bottom Stretch';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'STRETCH' || stage === 'IDLE') {
+        if (elbowAngle < 135) {
+          this.state.stage = 'PULL';
+          this.state.bottomFormOk = formOk;
+        }
+        stateLabel = 'Full Stretch — Pull to Hip';
+      } else if (stage === 'PULL') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (elbowAngle <= 80) {
+          this.state.stage = 'PEAK';
+          stateLabel = 'Peak Lat Contraction!';
+        } else {
+          stateLabel = `Rowing... ${elbowAngle}°`;
+        }
+      } else if (stage === 'PEAK') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (elbowAngle > 105) {
+          this.state.stage = 'LOWER';
+          stateLabel = 'Controlled Stretch';
+        }
+      } else if (stage === 'LOWER') {
+        if (elbowAngle > 150) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && this.state.bottomFormOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Squeezed lats!`;
+          }
+          this.state.stage = 'STRETCH';
+          this.state.bottomFormOk = false;
+          stateLabel = 'Full Stretch';
+        } else {
+          stateLabel = `Lowering... ${elbowAngle}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Elbow Pull': `${elbowAngle}° (Peak: ≤80°, Stretch: >150°)`,
+          'Torso Hinge': `${spineAngle}° (Target 45°–65°)`
+        },
+        activeLandmarks: [sideData.shoulderIdx, sideData.elbowIdx, sideData.wristIdx, sideData.hipIdx]
+      };
+    }
+  },
+
+  {
+    id: 'pike_pushup',
+    name: 'Pike Push-up (Shoulder Builder)',
+    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    equipment: 'Floor / Mat',
+    targetMuscles: 'Anterior & Medial Deltoids, Upper Chest, Triceps',
+    recommendedCamera: 'Side profile with full body visible',
+    setupTip: 'Hands on floor, hips piked high in an inverted V. Lower forehead forward toward floor between hands.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Elbow': LM.LEFT_ELBOW,
+      'Left Hip': LM.LEFT_HIP, 'Left Ankle': LM.LEFT_ANKLE
+    },
+    state: freshState({ stage: 'TOP' }),
+    reset() { this.state = freshState({ stage: 'TOP' }); },
+
+    evaluate(landmarks, Bio) {
+      const sideData = Bio.getSideProfileArmAndSpine(landmarks, LM);
+      if (!sideData.hasCore) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: 'Step into side view showing arms, hips, and feet',
+          errors: ['Cannot see body alignment'],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW]
+        };
+      }
+
+      const elbowAngle = Bio.calculateAngleSmoothed('pk_el', sideData.shoulder, sideData.elbow, sideData.wrist);
+      const hipPike = Bio.calculateAngleSmoothed('pk_hp', sideData.shoulder, sideData.hip, sideData.ankle);
+
+      const errors = [];
+      let formScore = 100;
+      if (hipPike > 115) {
+        errors.push('Pike hips higher into inverted V — target shoulders!');
+        formScore -= 25;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Lower head forward between hands';
+      let stateLabel = 'Pike Position';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'TOP' || stage === 'IDLE') {
+        if (elbowAngle < 145) {
+          this.state.stage = 'DOWN';
+          this.state.bottomFormOk = formOk;
+        }
+        stateLabel = 'Inverted V — Descend';
+      } else if (stage === 'DOWN') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (elbowAngle <= 90) {
+          this.state.stage = 'BOTTOM';
+          stateLabel = 'Shoulder Depth Reached!';
+        } else {
+          stateLabel = `Descending... ${elbowAngle}°`;
+        }
+      } else if (stage === 'BOTTOM') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (elbowAngle > 115) {
+          this.state.stage = 'UP';
+          stateLabel = 'Pressing Up';
+        }
+      } else if (stage === 'UP') {
+        if (elbowAngle > 155) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && this.state.bottomFormOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Boulder shoulder press!`;
+          }
+          this.state.stage = 'TOP';
+          this.state.bottomFormOk = false;
+          stateLabel = 'Top Lockout';
+        } else {
+          stateLabel = `Pressing... ${elbowAngle}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Elbow Depth': `${elbowAngle}° (Need ≤90°)`,
+          'Hip Pike': `${hipPike}° (Keep ≤105° for V-shape)`
+        },
+        activeLandmarks: [sideData.shoulderIdx, sideData.elbowIdx, sideData.hipIdx]
+      };
+    }
+  },
+
+  {
+    id: 'band_face_pull',
+    name: 'Resistance Band Face Pull',
+    category: EXERCISE_CATEGORIES.RESISTANCE_TUBES,
+    equipment: 'Resistance Band + Door Anchor',
+    targetMuscles: 'Rear Deltoids, Rotator Cuffs, Rhomboids',
+    recommendedCamera: 'Side or 45° angle, full upper body visible',
+    setupTip: 'Anchor band at eye/chest level. Pull band toward eyes/ears, flaring elbows high and wide.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Right Shoulder': LM.RIGHT_SHOULDER,
+      'Left Elbow': LM.LEFT_ELBOW, 'Right Elbow': LM.RIGHT_ELBOW,
+      'Left Wrist': LM.LEFT_WRIST, 'Right Wrist': LM.RIGHT_WRIST
+    },
+    state: freshState({ stage: 'STRETCH' }),
+    reset() { this.state = freshState({ stage: 'STRETCH' }); },
+
+    evaluate(landmarks, Bio) {
+      const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
+      if (!ok) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: `Cannot see: ${missingJoints.join(', ')}`,
+          errors: [`Cannot see: ${missingJoints.join(', ')}`],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_ELBOW, LM.RIGHT_ELBOW]
+        };
+      }
+
+      const lElbow = Bio.calculateAngleSmoothed('fp_l', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_ELBOW], landmarks[LM.LEFT_WRIST]);
+      const rElbow = Bio.calculateAngleSmoothed('fp_r', landmarks[LM.RIGHT_SHOULDER], landmarks[LM.RIGHT_ELBOW], landmarks[LM.RIGHT_WRIST]);
+      const avgElbow = Math.round((lElbow + rElbow) / 2);
+
+      const torsoAngle = Bio.calcAngleWithVerticalSmoothed('fp_sp', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
+
+      const errors = [];
+      let formScore = 100;
+      if (torsoAngle > 22) {
+        errors.push('Stand tall — avoid leaning back with bodyweight');
+        formScore -= 20;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Pull hands to ears, elbows high and wide';
+      let stateLabel = 'Arms Extended';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'STRETCH' || stage === 'IDLE') {
+        if (avgElbow < 140) {
+          this.state.stage = 'PULL';
+          this.state.bottomFormOk = formOk;
+        }
+        stateLabel = 'Start — Pull Toward Face';
+      } else if (stage === 'PULL') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (avgElbow <= 75) {
+          this.state.stage = 'PEAK';
+          stateLabel = 'Peak Rear Delt Squeeze!';
+        } else {
+          stateLabel = `Pulling... ${avgElbow}°`;
+        }
+      } else if (stage === 'PEAK') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (avgElbow > 105) {
+          this.state.stage = 'RETURN';
+          stateLabel = 'Controlled Return';
+        }
+      } else if (stage === 'RETURN') {
+        if (avgElbow > 150) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && this.state.bottomFormOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Perfect rotator cuff health!`;
+          }
+          this.state.stage = 'STRETCH';
+          this.state.bottomFormOk = false;
+          stateLabel = 'Arms Extended';
+        } else {
+          stateLabel = `Returning... ${avgElbow}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Elbow Flexion': `${avgElbow}° (Peak: ≤75°, Stretch: >150°)`,
+          'Torso Lean': `${torsoAngle}° (Keep <20°)`
+        },
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_ELBOW, LM.RIGHT_ELBOW]
+      };
+    }
+  },
+
+  {
+    id: 'ez_bar_skull_crusher',
+    name: 'EZ Bar Skull Crushers (Floor)',
+    category: EXERCISE_CATEGORIES.CURL_ROD,
+    equipment: 'EZ Curl Rod + Mat',
+    targetMuscles: 'Triceps Brachii (Long & Medial Heads)',
+    recommendedCamera: 'Side-profile from floor level',
+    setupTip: 'Lie on floor, arms vertical over chest. Bend only elbows to lower bar toward forehead, then lock out.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Elbow': LM.LEFT_ELBOW,
+      'Left Wrist': LM.LEFT_WRIST, 'Left Hip': LM.LEFT_HIP
+    },
+    state: freshState({ stage: 'LOCKOUT' }),
+    reset() { this.state = freshState({ stage: 'LOCKOUT' }); },
+
+    evaluate(landmarks, Bio) {
+      const sideData = Bio.getSideProfileArmAndSpine(landmarks, LM);
+      if (!sideData.hasCore) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: 'Camera must see your arm and upper body from side',
+          errors: ['Cannot see arm alignment'],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW]
+        };
+      }
+
+      const elbowAngle = Bio.calculateAngleSmoothed('sk_el', sideData.shoulder, sideData.elbow, sideData.wrist);
+      const armDrift = Bio.calcAngleWithVerticalSmoothed('sk_dr', sideData.elbow, sideData.shoulder);
+
+      const errors = [];
+      let formScore = 100;
+      if (armDrift > 32) {
+        errors.push('Keep upper arms steady — do not turn into a chest press!');
+        formScore -= 25;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Lower bar toward forehead with elbows pinned';
+      let stateLabel = 'Lockout';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'LOCKOUT' || stage === 'IDLE') {
+        if (elbowAngle < 140) {
+          this.state.stage = 'LOWERING';
+          this.state.bottomFormOk = formOk;
+        }
+        stateLabel = 'Arms Vertical — Lower Bar';
+      } else if (stage === 'LOWERING') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (elbowAngle <= 75) {
+          this.state.stage = 'BOTTOM';
+          stateLabel = 'Deep Tricep Stretch!';
+        } else {
+          stateLabel = `Lowering... ${elbowAngle}°`;
+        }
+      } else if (stage === 'BOTTOM') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (elbowAngle > 105) {
+          this.state.stage = 'EXTENDING';
+          stateLabel = 'Locking Out';
+        }
+      } else if (stage === 'EXTENDING') {
+        if (elbowAngle > 155) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && this.state.bottomFormOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Full tricep lockout!`;
+          }
+          this.state.stage = 'LOCKOUT';
+          this.state.bottomFormOk = false;
+          stateLabel = 'Lockout';
+        } else {
+          stateLabel = `Extending... ${elbowAngle}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Elbow Angle': `${elbowAngle}° (Stretch: ≤75°, Lock: >155°)`,
+          'Upper Arm Drift': armDrift <= 25 ? '✓ Steady' : '⚠ Drifting'
+        },
+        activeLandmarks: [sideData.shoulderIdx, sideData.elbowIdx, sideData.wristIdx]
+      };
+    }
+  },
+
+  {
+    id: 'band_tricep_pushdown',
+    name: 'Resistance Band Tricep Pushdown',
+    category: EXERCISE_CATEGORIES.RESISTANCE_TUBES,
+    equipment: 'Resistance Band + Door Anchor',
+    targetMuscles: 'Triceps (Lateral & Medial Heads)',
+    recommendedCamera: 'Side profile, 6-8 ft away',
+    setupTip: 'Anchor band overhead. Elbows pinned to ribs, push forearms down until arms lock out completely.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Elbow': LM.LEFT_ELBOW,
+      'Left Wrist': LM.LEFT_WRIST, 'Left Hip': LM.LEFT_HIP
+    },
+    state: freshState({ stage: 'TOP' }),
+    reset() { this.state = freshState({ stage: 'TOP' }); },
+
+    evaluate(landmarks, Bio) {
+      const sideData = Bio.getSideProfileArmAndSpine(landmarks, LM);
+      if (!sideData.hasCore) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: 'Camera must see your arm and upper body from side',
+          errors: ['Cannot see arm'],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_ELBOW]
+        };
+      }
+
+      const elbowAngle = Bio.calculateAngleSmoothed('pd_el', sideData.shoulder, sideData.elbow, sideData.wrist);
+
+      let formScore = 100;
+      let feedback = 'Keep elbows pinned to your ribs';
+      let stateLabel = 'Start Position';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'TOP' || stage === 'IDLE') {
+        if (elbowAngle > 95) {
+          this.state.stage = 'PUSHDOWN';
+        }
+        stateLabel = 'Ready — Push Down';
+      } else if (stage === 'PUSHDOWN') {
+        if (elbowAngle >= 155) {
+          this.state.stage = 'LOCKOUT';
+          stateLabel = 'Peak Tricep Squeeze!';
+        } else {
+          stateLabel = `Pushing... ${elbowAngle}°`;
+        }
+      } else if (stage === 'LOCKOUT') {
+        if (elbowAngle < 130) {
+          this.state.stage = 'RETURN';
+        }
+      } else if (stage === 'RETURN') {
+        if (elbowAngle <= 85) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Horse-shoe triceps!`;
+          }
+          this.state.stage = 'TOP';
+          stateLabel = 'Top Stretch';
+        } else {
+          stateLabel = `Returning... ${elbowAngle}°`;
+        }
+      }
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors: [],
+        formScore,
+        liveAngles: {
+          'Elbow Angle': `${elbowAngle}° (Lock: ≥155°, Stretch: ≤85°)`
+        },
+        activeLandmarks: [sideData.shoulderIdx, sideData.elbowIdx, sideData.wristIdx]
+      };
+    }
+  },
+
+  {
+    id: 'dumbbell_goblet_squat',
+    name: 'Dumbbell Goblet Squat',
+    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    equipment: 'Dumbbells',
+    targetMuscles: 'Quadriceps, Glutes, Core, Thoracic Extensors',
+    recommendedCamera: 'Front view or 45° angle, full body visible',
+    setupTip: 'Hold dumbbell vertically against chest with both hands. Squat deep between knees, chest tall.',
+    requiredLandmarks: {
+      'Left Hip': LM.LEFT_HIP, 'Left Knee': LM.LEFT_KNEE, 'Left Ankle': LM.LEFT_ANKLE,
+      'Right Hip': LM.RIGHT_HIP, 'Right Knee': LM.RIGHT_KNEE, 'Right Ankle': LM.RIGHT_ANKLE
+    },
+    state: freshState({ stage: 'STAND' }),
+    reset() { this.state = freshState({ stage: 'STAND' }); },
+
+    evaluate(landmarks, Bio) {
+      const { ok, missingJoints } = Bio.checkRequiredJoints(landmarks, this.requiredLandmarks);
+      if (!ok) {
+        return {
+          repCompleted: false, repCount: this.state.repCount,
+          stateLabel: 'Adjust Camera', formScore: 100,
+          feedback: `Cannot see: ${missingJoints.join(', ')}`,
+          errors: [`Cannot see: ${missingJoints.join(', ')}`],
+          liveAngles: {}, activeLandmarks: [LM.LEFT_KNEE, LM.RIGHT_KNEE]
+        };
+      }
+
+      const lKnee = Bio.calculateAngleSmoothed('gs_lk', landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE], landmarks[LM.LEFT_ANKLE]);
+      const rKnee = Bio.calculateAngleSmoothed('gs_rk', landmarks[LM.RIGHT_HIP], landmarks[LM.RIGHT_KNEE], landmarks[LM.RIGHT_ANKLE]);
+      const avgKnee = Math.round((lKnee + rKnee) / 2);
+
+      const torsoAngle = Bio.calcAngleWithVerticalSmoothed('gs_sp', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
+      const hipDist = Bio.distance(landmarks[LM.LEFT_HIP], landmarks[LM.RIGHT_HIP]);
+      const kneeDist = Bio.distance(landmarks[LM.LEFT_KNEE], landmarks[LM.RIGHT_KNEE]);
+      const valgus = kneeDist < hipDist * 0.70 && avgKnee < 135;
+
+      const errors = [];
+      let formScore = 100;
+      if (torsoAngle > 42) {
+        errors.push('Chest up! Keep dumbbell tight against sternum');
+        formScore -= 25;
+      }
+      if (valgus) {
+        errors.push('Knees caving in — push outward over pinky toes');
+        formScore -= 30;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Squat deep between your knees, chest tall';
+      let stateLabel = 'Standing';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'STAND' || stage === 'IDLE') {
+        if (avgKnee < 155) {
+          this.state.stage = 'DESCEND';
+          this.state.bottomFormOk = formOk;
+        }
+        stateLabel = 'Standing — Ease Down';
+      } else if (stage === 'DESCEND') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (avgKnee <= 95) {
+          this.state.stage = 'BOTTOM';
+          stateLabel = 'Parallel Depth Reached!';
+          feedback = 'Drive through full foot to stand';
+        } else {
+          stateLabel = `Descending... ${avgKnee}°`;
+        }
+      } else if (stage === 'BOTTOM') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (avgKnee > 115) {
+          this.state.stage = 'ASCEND';
+          stateLabel = 'Ascending';
+        }
+      } else if (stage === 'ASCEND') {
+        if (avgKnee > 158) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && this.state.bottomFormOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Heavy goblet squat!`;
+          }
+          this.state.stage = 'STAND';
+          this.state.bottomFormOk = false;
+          stateLabel = 'Standing';
+        } else {
+          stateLabel = `Ascending... ${avgKnee}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Knee Flexion': `${avgKnee}° (Goal ≤95°)`,
+          'Torso Angle': `${torsoAngle}° (Keep <40°)`,
+          'Knees': valgus ? '⚠ Caving' : '✓ Outward'
+        },
+        activeLandmarks: [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE]
+      };
+    }
+  },
+
+  {
+    id: 'bulgarian_split_squat',
+    name: 'Bulgarian Split Squat / Reverse Lunge',
+    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    equipment: 'Dumbbells + Mat',
+    targetMuscles: 'Quadriceps, Gluteus Maximus, Adductors',
+    recommendedCamera: 'Side profile or 45° angle, full body visible',
+    setupTip: 'One foot forward, rear foot stepped back or elevated. Lower rear knee until front thigh is parallel.',
+    requiredLandmarks: {
+      'Left Hip': LM.LEFT_HIP, 'Left Knee': LM.LEFT_KNEE, 'Left Ankle': LM.LEFT_ANKLE
+    },
+    state: freshState({ stage: 'STAND' }),
+    reset() { this.state = freshState({ stage: 'STAND' }); },
+
+    evaluate(landmarks, Bio) {
+      const frontKnee = Bio.calculateAngleSmoothed('bss_k', landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE], landmarks[LM.LEFT_ANKLE]);
+      const torsoAngle = Bio.calcAngleWithVerticalSmoothed('bss_t', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP]);
+
+      const errors = [];
+      let formScore = 100;
+      if (torsoAngle > 35) {
+        errors.push('Torso leaning too far forward — stay tall');
+        formScore -= 20;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Lower rear knee down with control';
+      let stateLabel = 'Standing Stance';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'STAND' || stage === 'IDLE') {
+        if (frontKnee < 155) {
+          this.state.stage = 'DESCEND';
+          this.state.bottomFormOk = formOk;
+        }
+        stateLabel = 'Split Stance — Lower';
+      } else if (stage === 'DESCEND') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (frontKnee <= 95) {
+          this.state.stage = 'BOTTOM';
+          stateLabel = 'Parallel Depth!';
+        } else {
+          stateLabel = `Descending... ${frontKnee}°`;
+        }
+      } else if (stage === 'BOTTOM') {
+        if (formOk) this.state.bottomFormOk = true;
+        if (frontKnee > 115) {
+          this.state.stage = 'ASCEND';
+          stateLabel = 'Driving Up';
+        }
+      } else if (stage === 'ASCEND') {
+        if (frontKnee > 155) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && this.state.bottomFormOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Pure quad & glute power!`;
+          }
+          this.state.stage = 'STAND';
+          this.state.bottomFormOk = false;
+          stateLabel = 'Standing';
+        } else {
+          stateLabel = `Ascending... ${frontKnee}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Front Knee': `${frontKnee}° (Goal ≤95°)`,
+          'Torso Lean': `${torsoAngle}° (Keep <30°)`
+        },
+        activeLandmarks: [LM.LEFT_HIP, LM.LEFT_KNEE, LM.LEFT_ANKLE]
+      };
+    }
+  },
+
+  {
+    id: 'weighted_glute_bridge',
+    name: 'Weighted Glute Bridge (Floor)',
+    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    equipment: 'Dumbbells or EZ Bar + Mat',
+    targetMuscles: 'Gluteus Maximus, Hamstrings, Core',
+    recommendedCamera: 'Side profile from floor level',
+    setupTip: 'Lie on back, feet flat. Rest dumbbell across hips. Drive through heels to full hip lockout.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Hip': LM.LEFT_HIP, 'Left Knee': LM.LEFT_KNEE
+    },
+    state: freshState({ stage: 'FLOOR' }),
+    reset() { this.state = freshState({ stage: 'FLOOR' }); },
+
+    evaluate(landmarks, Bio) {
+      const hipExt = Bio.calculateAngleSmoothed('gb_h', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE]);
+
+      const errors = [];
+      let formScore = 100;
+      if (hipExt > 190) {
+        errors.push('Avoid hyperextending lower back — squeeze glutes at neutral');
+        formScore -= 20;
+      }
+
+      const formOk = errors.length === 0;
+      let feedback = 'Drive through heels, squeeze glutes hard';
+      let stateLabel = 'Floor Position';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'FLOOR' || stage === 'IDLE') {
+        if (hipExt > 125) {
+          this.state.stage = 'LIFTING';
+        }
+        stateLabel = 'Floor — Drive Hips Up';
+      } else if (stage === 'LIFTING') {
+        if (hipExt >= 165) {
+          this.state.stage = 'LOCKOUT';
+          stateLabel = 'Peak Glute Lockout!';
+        } else {
+          stateLabel = `Lifting... ${hipExt}°`;
+        }
+      } else if (stage === 'LOCKOUT') {
+        if (hipExt < 145) {
+          this.state.stage = 'LOWERING';
+        }
+      } else if (stage === 'LOWERING') {
+        if (hipExt <= 115) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS && formOk) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Strong glute bridge!`;
+          }
+          this.state.stage = 'FLOOR';
+          stateLabel = 'Floor Position';
+        } else {
+          stateLabel = `Lowering... ${hipExt}°`;
+        }
+      }
+
+      if (errors.length > 0) feedback = errors[0];
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Hip Extension': `${hipExt}° (Lockout: ≥165°)`
+        },
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_HIP, LM.LEFT_KNEE]
+      };
+    }
+  },
+
+  {
+    id: 'standing_calf_raise',
+    name: 'Standing Dumbbell Calf Raise',
+    category: EXERCISE_CATEGORIES.DUMBBELLS,
+    equipment: 'Dumbbells + Mat / Step',
+    targetMuscles: 'Gastrocnemius, Soleus (Calves), Ankle Stabilizers',
+    recommendedCamera: 'Front or side view showing feet and legs',
+    setupTip: 'Stand tall holding dumbbells at sides. Rise up onto balls of feet, hold 1s at top, lower slowly.',
+    requiredLandmarks: {
+      'Left Ankle': LM.LEFT_ANKLE, 'Left Heel': LM.LEFT_HEEL, 'Left Foot Index': LM.LEFT_FOOT_INDEX
+    },
+    state: freshState({ stage: 'FLAT' }),
+    reset() { this.state = freshState({ stage: 'FLAT' }); },
+
+    evaluate(landmarks, Bio) {
+      const heelY = landmarks[LM.LEFT_HEEL]?.y ?? 0;
+      const toeY = landmarks[LM.LEFT_FOOT_INDEX]?.y ?? 0;
+      const heelElevation = Math.round((toeY - heelY) * 300);
+
+      let feedback = 'Drive through big toes, rise high on calves';
+      let stateLabel = 'Flat Feet';
+      let repCompleted = false;
+      const { stage } = this.state;
+
+      if (stage === 'FLAT' || stage === 'IDLE') {
+        if (heelElevation > 8) {
+          this.state.stage = 'RISING';
+        }
+        stateLabel = 'Flat Feet — Rise High';
+      } else if (stage === 'RISING') {
+        if (heelElevation >= 18) {
+          this.state.stage = 'PEAK';
+          stateLabel = 'Peak Calf Contraction!';
+        } else {
+          stateLabel = `Rising... (${heelElevation})`;
+        }
+      } else if (stage === 'PEAK') {
+        if (heelElevation < 12) {
+          this.state.stage = 'LOWERING';
+        }
+      } else if (stage === 'LOWERING') {
+        if (heelElevation <= 6) {
+          const now = Date.now();
+          if (now - this.state.lastRepTime > MIN_REP_INTERVAL_MS) {
+            this.state.repCount++;
+            this.state.lastRepTime = now;
+            repCompleted = true;
+            feedback = `Rep ${this.state.repCount} ✓ Full calf stretch!`;
+          }
+          this.state.stage = 'FLAT';
+          stateLabel = 'Flat Feet';
+        } else {
+          stateLabel = 'Lowering with Control';
+        }
+      }
+
+      return {
+        repCompleted, repCount: this.state.repCount,
+        stateLabel, feedback, errors: [],
+        formScore: 100,
+        liveAngles: {
+          'Heel Elevation': `${heelElevation} (Peak: ≥18)`
+        },
+        activeLandmarks: [LM.LEFT_ANKLE, LM.LEFT_HEEL, LM.LEFT_FOOT_INDEX]
+      };
+    }
+  },
+
+  {
+    id: 'side_plank',
+    name: 'Side Plank (Obliques & Core)',
+    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    equipment: 'Floor / Mat',
+    targetMuscles: 'Internal/External Obliques, Glute Medius, Core',
+    recommendedCamera: 'Front view showing full diagonal body line',
+    setupTip: 'Lie on side on forearm. Lift hips until body forms straight diagonal line from shoulder to ankles.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Hip': LM.LEFT_HIP, 'Left Ankle': LM.LEFT_ANKLE
+    },
+    state: freshState({ stage: 'HOLD', holdSeconds: 0, lastTick: 0 }),
+    reset() { this.state = freshState({ stage: 'HOLD', holdSeconds: 0, lastTick: 0 }); },
+
+    evaluate(landmarks, Bio) {
+      const spineLine = Bio.calculateAngleSmoothed('sp_line', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_ANKLE]);
+
+      const errors = [];
+      let formScore = 100;
+      if (spineLine < 155) {
+        errors.push('Hips sagging — push bottom hip up toward ceiling');
+        formScore -= 25;
+      }
+
+      const formOk = errors.length === 0;
+      const now = Date.now();
+
+      if (formOk) {
+        if (!this.state.lastTick) this.state.lastTick = now;
+        if (now - this.state.lastTick >= 1000) {
+          this.state.holdSeconds += Math.floor((now - this.state.lastTick) / 1000);
+          this.state.lastTick = now;
+        }
+      } else {
+        this.state.lastTick = now;
+      }
+
+      let stateLabel = formOk ? 'Holding Side Plank ✓' : 'Lift Bottom Hip';
+      let feedback = formOk ? 'Hold rigid diagonal line, breathe steadily' : (errors[0] || 'Hold posture');
+
+      return {
+        repCompleted: false, repCount: this.state.holdSeconds, unit: 'sec',
+        stateLabel, feedback, errors,
+        formScore: Math.max(formScore, 40),
+        liveAngles: {
+          'Body Linearity': `${spineLine}° (Goal >160°)`,
+          'Hold Time': `${this.state.holdSeconds}s`
+        },
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_HIP, LM.LEFT_ANKLE]
+      };
+    }
+  },
+
+  {
+    id: 'hollow_body_hold',
+    name: 'Hollow Body Hold',
+    category: EXERCISE_CATEGORIES.BODYWEIGHT,
+    equipment: 'Floor / Mat',
+    targetMuscles: 'Rectus Abdominis, Transverse Abdominis, Hip Flexors',
+    recommendedCamera: 'Side profile from floor level',
+    setupTip: 'Lie on back, press lower back firmly into floor. Raise arms and legs 6 inches off ground.',
+    requiredLandmarks: {
+      'Left Shoulder': LM.LEFT_SHOULDER, 'Left Hip': LM.LEFT_HIP, 'Left Knee': LM.LEFT_KNEE
+    },
+    state: freshState({ stage: 'HOLD', holdSeconds: 0, lastTick: 0 }),
+    reset() { this.state = freshState({ stage: 'HOLD', holdSeconds: 0, lastTick: 0 }); },
+
+    evaluate(landmarks, Bio) {
+      const hipAngle = Bio.calculateAngleSmoothed('hbh_hp', landmarks[LM.LEFT_SHOULDER], landmarks[LM.LEFT_HIP], landmarks[LM.LEFT_KNEE]);
+
+      const inHollow = hipAngle >= 135 && hipAngle <= 165;
+      const now = Date.now();
+
+      if (inHollow) {
+        if (!this.state.lastTick) this.state.lastTick = now;
+        if (now - this.state.lastTick >= 1000) {
+          this.state.holdSeconds += Math.floor((now - this.state.lastTick) / 1000);
+          this.state.lastTick = now;
+        }
+      } else {
+        this.state.lastTick = now;
+      }
+
+      let stateLabel = inHollow ? 'Hollow Body Engaged ✓' : 'Press Lower Back to Floor';
+      let feedback = inHollow ? 'Glue lower back to floor, brace core tight' : 'Lift shoulders and legs slightly';
+
+      return {
+        repCompleted: false, repCount: this.state.holdSeconds, unit: 'sec',
+        stateLabel, feedback, errors: [],
+        formScore: 100,
+        liveAngles: {
+          'Hollow Angle': `${hipAngle}° (Target 140°–165°)`,
+          'Hold Time': `${this.state.holdSeconds}s`
+        },
+        activeLandmarks: [LM.LEFT_SHOULDER, LM.LEFT_HIP, LM.LEFT_KNEE]
+      };
+    }
+  }
+
 ];

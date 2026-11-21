@@ -631,4 +631,360 @@ export const TUTORIALS = {
       { label: 'Lockout', kneeAngle: 175 },
     ],
   },
+
+  dumbbell_floor_press: {
+    youtubeId: 'k8fvMnz42-g',
+    youtubeTitle: 'Dumbbell Floor Press Form & Technique',
+    keyPoints: [
+      'Lie flat on back with knees bent and feet firmly planted',
+      'Elbows tucked at ~45–60° angle to protect shoulders',
+      'Press dumbbells straight up to full lockout over mid-chest',
+      'Lower under control until upper arms / triceps gently touch floor',
+      'Pause briefly on the floor to eliminate bounce and engage pectorals',
+    ],
+    commonMistakes: [
+      '❌ Flaring elbows out at 90° (stresses anterior rotator cuff)',
+      '❌ Bouncing elbows violently off the hard floor',
+      '❌ Uneven press where dominant arm presses faster than weaker arm',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side-angle or 45° view from floor level',
+      '📏 Distance: 6–8 ft away showing upper body and floor contact',
+      '📐 Height: Floor level or low stool (12–18 inches)',
+    ],
+    breathingCue: 'Inhale lowering to floor → Exhale forcefully pressing up to lockout',
+    skeletonFrames: [
+      { label: 'Floor Touch', elbowAngle: 90 },
+      { label: 'Mid-Press', elbowAngle: 125 },
+      { label: 'Top Lockout', elbowAngle: 165 },
+    ],
+  },
+
+  diamond_pushup: {
+    youtubeId: 'PPTj-MW2tcs',
+    youtubeTitle: 'Perfect Diamond Push-Up Technique',
+    keyPoints: [
+      'Hands close together under chest forming a diamond or triangle shape',
+      'Keep core rigid and hips level in a straight plank line (>160°)',
+      'Lower chest until nearly touching hands (elbow angle ≤85°)',
+      'Keep elbows tucked close to ribcage throughout movement',
+      'Lock out arms at the top for maximum tricep contraction',
+    ],
+    commonMistakes: [
+      '❌ Sagging hips or hyperextending lower back',
+      '❌ Cutting depth short (half reps)',
+      '❌ Flaring elbows outward excessively instead of back',
+    ],
+    cameraSetup: [
+      '📷 Angle: 45° angle or side profile',
+      '📏 Distance: 6–8 ft away showing full head-to-heel plank',
+      '📐 Height: Knee level or floor level',
+    ],
+    breathingCue: 'Inhale lowering chest to hands → Exhale driving up to lockout',
+    skeletonFrames: [
+      { label: 'Top Plank', elbowAngle: 165, spineAngle: 175 },
+      { label: 'Bottom Diamond', elbowAngle: 80, spineAngle: 170 },
+      { label: 'Lockout', elbowAngle: 165, spineAngle: 175 },
+    ],
+  },
+
+  single_arm_dumbbell_row: {
+    youtubeId: 'i9BJwVCK5VQ',
+    youtubeTitle: 'Single Arm Dumbbell Row Tutorial',
+    keyPoints: [
+      'Hinge hips back with flat spine at ~45–60° torso angle',
+      'One hand supported on stable surface, other arm holding dumbbell',
+      'Pull dumbbell towards hip crease leading with the elbow (≤80°)',
+      'Squeeze lat hard at top peak contraction',
+      'Lower weight under control to full stretch (>150° elbow)',
+    ],
+    commonMistakes: [
+      '❌ Twisting torso or jerking momentum to swing weight up',
+      '❌ Rounding lower back (keep spine braced and neutral)',
+      '❌ Pulling to chest instead of pocket/hip',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side profile showing torso hinge and working arm',
+      '📏 Distance: 6–8 ft away',
+      '📐 Height: Hip or waist level',
+    ],
+    breathingCue: 'Inhale on deep stretch → Exhale pulling dumbbell to hip',
+    skeletonFrames: [
+      { label: 'Stretch', elbowAngle: 155, torsoAngle: 50 },
+      { label: 'Peak Row', elbowAngle: 75, torsoAngle: 50 },
+    ],
+  },
+
+  pike_pushup: {
+    youtubeId: 'eG20L9cl81w',
+    youtubeTitle: 'Pike Push Ups Made Easy',
+    keyPoints: [
+      'Form inverted V-shape (pike) with hips high (hip angle ≤105°)',
+      'Look slightly forward towards hands, head neutral',
+      'Lower top of head forward between and slightly ahead of hands (elbow ≤90°)',
+      'Press through shoulders pushing head back between arms at lockout (>155°)',
+      'Maintain pike angle without dropping hips into regular pushup',
+    ],
+    commonMistakes: [
+      '❌ Dropping hips flat into regular pushup (loses shoulder emphasis)',
+      '❌ Flaring elbows sideways instead of tracking 45° backward',
+      '❌ Not pushing head back through window at top lockout',
+    ],
+    cameraSetup: [
+      '📷 Angle: Direct side profile showing inverted V hip pike',
+      '📏 Distance: 7–9 ft away',
+      '📐 Height: Waist level',
+    ],
+    breathingCue: 'Inhale lowering head towards floor → Exhale pressing up and through',
+    skeletonFrames: [
+      { label: 'Pike Lockout', elbowAngle: 165, hipAngle: 95 },
+      { label: 'Bottom Pike', elbowAngle: 85, hipAngle: 95 },
+    ],
+  },
+
+  band_face_pull: {
+    youtubeId: 'Qij3pSB-gNk',
+    youtubeTitle: 'Face Pulls with Resistance Band',
+    keyPoints: [
+      'Anchor resistance band at eye or forehead height using door anchor',
+      'Stand upright with core braced, holding handles with thumbs pointing back',
+      'Pull band directly towards bridge of nose or eyes, splitting hands apart',
+      'Flourish elbows high and wide, externally rotating shoulders (elbow ≤75°)',
+      'Squeeze rear deltoids and upper back for 1 full second',
+    ],
+    commonMistakes: [
+      '❌ Leaning backward excessively or using torso sway',
+      '❌ Dropping elbows low turning movement into a row',
+      '❌ Rushing reps without holding the rear delt contraction',
+    ],
+    cameraSetup: [
+      '📷 Angle: Front-facing or 45° angle',
+      '📏 Distance: 6–8 ft away showing head, shoulders, and door anchor',
+      '📐 Height: Chest or eye level',
+    ],
+    breathingCue: 'Inhale returning arms forward → Exhale pulling band to face',
+    skeletonFrames: [
+      { label: 'Forward Reach', elbowAngle: 155 },
+      { label: 'Peak Face Pull', elbowAngle: 70 },
+    ],
+  },
+
+  ez_bar_skull_crusher: {
+    youtubeId: 'h4l3cpeNtbE',
+    youtubeTitle: 'How to Do Skull Crushers Properly',
+    keyPoints: [
+      'Lie flat on mat holding EZ curl bar with close overhand grip',
+      'Upper arms vertical or angled slightly back (~75–90° to torso)',
+      'Keep upper arms stationary; bend only at elbows',
+      'Lower bar slowly towards forehead or crown until deep tricep stretch (≤75°)',
+      'Extend elbows smoothly to full tricep lockout (>155°)',
+    ],
+    commonMistakes: [
+      '❌ Flaring elbows outwards (keep elbows tracked in tight)',
+      '❌ Moving upper arms back and forth turning it into a pullover or press',
+      '❌ Banging bar against skull — maintain strict tempo and control',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side profile showing upper arm angle and elbow bend',
+      '📏 Distance: 6–8 ft away from floor level',
+      '📐 Height: 12–24 inches off floor',
+    ],
+    breathingCue: 'Inhale lowering bar towards forehead → Exhale locking out triceps',
+    skeletonFrames: [
+      { label: 'Top Lockout', elbowAngle: 165, armDrift: 5 },
+      { label: 'Deep Stretch', elbowAngle: 70, armDrift: 8 },
+    ],
+  },
+
+  band_tricep_pushdown: {
+    youtubeId: 'PkGesjlH7RQ',
+    youtubeTitle: 'Resistance Band Triceps Pushdown',
+    keyPoints: [
+      'Anchor band high above head using secure door anchor',
+      'Grip band handles with elbows pinned tight against ribs',
+      'Hinge slightly at hips with braced core',
+      'Push band down until elbows are completely locked out (>155°)',
+      'Allow forearms to rise up until elbows bend past 90° for full stretch',
+    ],
+    commonMistakes: [
+      '❌ Letting elbows flare forward and back (keep elbows glued to ribs)',
+      '❌ Using bodyweight momentum or leaning into the band',
+      '❌ Partial lockout at the bottom',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side profile or 45° angle showing pinned elbows',
+      '📏 Distance: 6–8 ft away',
+      '📐 Height: Chest or waist level',
+    ],
+    breathingCue: 'Inhale on forearm rise → Exhale snapping elbows into full lockout',
+    skeletonFrames: [
+      { label: 'Stretch', elbowAngle: 80 },
+      { label: 'Full Lockout', elbowAngle: 165 },
+    ],
+  },
+
+  dumbbell_goblet_squat: {
+    youtubeId: 'lRYBbchqxtI',
+    youtubeTitle: 'How to Do a Goblet Squat',
+    keyPoints: [
+      'Hold dumbbell vertically against chest with both hands under bell',
+      'Feet slightly wider than shoulder-width, toes turned 15–20° out',
+      'Break at hips and knees together, sitting down between thighs',
+      'Squat until hip crease is below knee level (knee angle ≤95°)',
+      'Keep chest tall and upright throughout the descent (<40° torso lean)',
+      'Push through whole foot and drive knees outwards on ascent',
+    ],
+    commonMistakes: [
+      '❌ Knees caving inward (valgus collapse)',
+      '❌ Tilting torso forward or dropping the dumbbell away from chest',
+      '❌ Cutting squat depth above parallel',
+    ],
+    cameraSetup: [
+      '📷 Angle: 45° angle or front view to assess both depth and knee tracking',
+      '📏 Distance: 7–9 ft away with full body visible',
+      '📐 Height: Waist level',
+    ],
+    breathingCue: 'Inhale and brace core at top → Squat deep → Exhale driving up',
+    skeletonFrames: [
+      { label: 'Standing', kneeAngle: 175, torsoAngle: 10 },
+      { label: 'Parallel Depth', kneeAngle: 90, torsoAngle: 25 },
+      { label: 'Lockout', kneeAngle: 175, torsoAngle: 10 },
+    ],
+  },
+
+  bulgarian_split_squat: {
+    youtubeId: 'or1frhkjBDc',
+    youtubeTitle: 'Bulgarian Split Squat Setup & Form Tips',
+    keyPoints: [
+      'Rear foot elevated on sturdy chair, bench, or couch behind you',
+      'Front foot positioned so shin remains relatively vertical during descent',
+      'Lower rear knee straight down toward floor until front knee reaches ≤95°',
+      'Maintain slight forward torso lean to maximize glute and quad engagement',
+      'Drive up through front heel and midfoot to full standing position',
+    ],
+    commonMistakes: [
+      '❌ Front knee caving inward (push knee out tracking over middle toes)',
+      '❌ Front foot too close causing rear knee jamming or heel lifting',
+      '❌ Collapsing torso onto front thigh',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side profile or 45° view showing front knee angle and depth',
+      '📏 Distance: 7–9 ft away',
+      '📐 Height: Knee or waist level',
+    ],
+    breathingCue: 'Inhale descending into lunge → Exhale driving through front heel',
+    skeletonFrames: [
+      { label: 'Top Stance', kneeAngle: 165 },
+      { label: 'Bottom Lunge', kneeAngle: 85 },
+      { label: 'Top Stance', kneeAngle: 165 },
+    ],
+  },
+
+  weighted_glute_bridge: {
+    youtubeId: 'euDIvpBWmDg',
+    youtubeTitle: 'Dumbbell Glute Bridge Setup & Form',
+    keyPoints: [
+      'Lie on back with knees bent ~90° and feet flat on floor shoulder-width',
+      'Place dumbbell securely across hips, held steady with both hands',
+      'Drive through heels and squeeze glutes hard to lift hips',
+      'Form straight diagonal line from knees through hips to shoulders (≥165°)',
+      'Hold peak squeeze for 1 second without hyperextending lumbar spine (≤190°)',
+    ],
+    commonMistakes: [
+      '❌ Hyperextending lower back at top instead of squeezing glutes',
+      '❌ Lifting on toes instead of driving through heels',
+      '❌ Letting knees collapse inward during hip drive',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side profile from floor level showing hip extension line',
+      '📏 Distance: 6–8 ft away',
+      '📐 Height: 12–18 inches off floor',
+    ],
+    breathingCue: 'Inhale on floor → Exhale driving hips upward to glute contraction',
+    skeletonFrames: [
+      { label: 'Bottom Bridge', hipAngle: 110 },
+      { label: 'Full Lockout', hipAngle: 175 },
+    ],
+  },
+
+  standing_calf_raise: {
+    youtubeId: 'ADITZCcUyVo',
+    youtubeTitle: 'Standing Dumbbell Calf Raises',
+    keyPoints: [
+      'Hold dumbbells at sides or stand with balls of feet elevated on an edge',
+      'Keep knees almost straight with slight soft micro-bend',
+      'Press through the balls of both big toes to raise heels as high as possible',
+      'Squeeze calves hard at the peak for 1 second',
+      'Lower heels slowly under control for a full 2-second stretch',
+    ],
+    commonMistakes: [
+      '❌ Bouncing at the bottom with achilles recoil instead of muscle drive',
+      '❌ Rolling onto outside edges of feet (keep pressure through big toe)',
+      '❌ Bending knees to cheat the weight up',
+    ],
+    cameraSetup: [
+      '📷 Angle: Side or 45° angle showing feet and lower legs clearly',
+      '📏 Distance: 6–8 ft away',
+      '📐 Height: Knee level',
+    ],
+    breathingCue: 'Inhale lowering to deep stretch → Exhale rising onto toes',
+    skeletonFrames: [
+      { label: 'Full Stretch', ankleAngle: 80 },
+      { label: 'Peak Contraction', ankleAngle: 135 },
+    ],
+  },
+
+  side_plank: {
+    youtubeId: 'BFOyHDlY2UE',
+    youtubeTitle: 'Fix Your Side Plank Form',
+    keyPoints: [
+      'Lie on side with elbow directly beneath shoulder and forearm flat',
+      'Stack feet or stagger top foot in front for balance',
+      'Lift hips off floor until body forms rigid diagonal line from head to heels (>160°)',
+      'Keep core braced, glutes squeezed, and bottom hip elevated',
+      'Hold isometric tension without allowing hips to sag toward floor',
+    ],
+    commonMistakes: [
+      '❌ Hips sagging towards floor (push bottom hip upward)',
+      '❌ Rolling top shoulder forward or backward (keep shoulders stacked)',
+      '❌ Placing elbow too far out from under shoulder causing joint strain',
+    ],
+    cameraSetup: [
+      '📷 Angle: Front-facing or 45° view showing straight diagonal body line',
+      '📏 Distance: 6–8 ft away',
+      '📐 Height: Floor or knee level',
+    ],
+    breathingCue: 'Maintain steady, controlled rhythmic breathing while bracing core',
+    skeletonFrames: [
+      { label: 'Active Hold', spineLine: 175 },
+      { label: 'Sagging Warning', spineLine: 145 },
+    ],
+  },
+
+  hollow_body_hold: {
+    youtubeId: 'JnuYfsJ3CKg',
+    youtubeTitle: 'How to Do a Hollow Body Hold',
+    keyPoints: [
+      'Lie flat on back and firmly press lower back into floor (no daylight)',
+      'Raise shoulder blades off floor and extend arms overhead',
+      'Lift legs 4–6 inches off floor with toes pointed (hip angle 140°–165°)',
+      'Maintain "banana" or hollow body shape with tight abdominal compression',
+      'If lower back arches off floor, bend knees slightly to regress until stronger',
+    ],
+    commonMistakes: [
+      '❌ Lower back lifting or arching off the floor (instant form breakdown)',
+      '❌ Tucking chin into chest excessively (keep neck neutral)',
+      '❌ Holding breath (maintain shallow rhythmic breathing under tension)',
+    ],
+    cameraSetup: [
+      '📷 Angle: Direct side profile at floor level showing lower back and body curve',
+      '📏 Distance: 6–8 ft away',
+      '📐 Height: Floor level (6–12 inches)',
+    ],
+    breathingCue: 'Breathe shallowly through the nose while maintaining maximum abdominal brace',
+    skeletonFrames: [
+      { label: 'Hollow Position', hipAngle: 150 },
+    ],
+  },
+
 };
